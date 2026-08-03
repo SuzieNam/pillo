@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="icon.svg" />
 <title>PILLO</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1605,29 +1606,66 @@ function CameraScreen({ goBack, goCabinet }) {
   const timer = useRef(null);
   const videoRef = useRef(null);
   const [camErr, setCamErr] = useState(false);
+  const [scanCode, setScanCode] = useState(null);
 
-  // live back-camera feed while framing a shot (needs HTTPS + permission)
+  // live back-camera feed + continuous barcode scan while framing (HTTPS + permission)
   useEffect(() => {
     if (phase !== "capture") return;
-    let stream;
     setCamErr(false);
     const md = navigator.mediaDevices;
     if (!md || !md.getUserMedia) {
       setCamErr(true);
       return;
     }
+    const Z = window.ZXing;
+    if (Z && Z.BrowserMultiFormatReader) {
+      let done = false;
+      const reader = new Z.BrowserMultiFormatReader();
+      reader
+        .decodeFromConstraints(
+          { video: { facingMode: "environment" }, audio: false },
+          videoRef.current,
+          (result) => {
+            if (result && !done) {
+              done = true;
+              setScanCode(result.getText());
+              setDetected("barcode");
+              setConfirmed({});
+              setShowTypes(false);
+              setPhase("result");
+            }
+          }
+        )
+        .catch(() => setCamErr(true));
+      return () => {
+        try { reader.reset(); } catch (e) {}
+      };
+    }
+    // fallback: live feed only (barcode lib unavailable)
+    let stream;
     md.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-      .then((s) => {
-        stream = s;
-        if (videoRef.current) videoRef.current.srcObject = s;
-      })
+      .then((s) => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
       .catch(() => setCamErr(true));
-    return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-    };
+    return () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [phase]);
 
-  const R = CAM_RESULT[detected];
+  const R =
+    detected === "barcode" && scanCode
+      ? {
+          source: `READ FROM BARCODE ${scanCode}`,
+          title: scanCode,
+          fields: [
+            { id: "b1", label: "BARCODE", value: scanCode },
+            { id: "b2", label: "PRODUCT", value: "Not in the database yet", low: true },
+          ],
+          note: {
+            k: "BARCODE READ",
+            v: "Real code scanned. Product lookup needs a product database — for now, confirm the item details manually.",
+          },
+          cta: "ADD 1 ITEM",
+          done: "Added to your Cabinet.",
+        }
+      : CAM_RESULT[detected];
   const remaining =
     phase === "result"
       ? R.fields.filter((f) => f.low && !confirmed[f.id]).length
@@ -1651,6 +1689,7 @@ function CameraScreen({ goBack, goCabinet }) {
     if (timer.current) clearTimeout(timer.current);
     setConfirmed({});
     setShowTypes(false);
+    setScanCode(null);
     setPhase("capture");
   };
 
@@ -2111,7 +2150,7 @@ function BottomNav({ tab, setTab }) {
   return (
     <div
       className={
-        "absolute bottom-0 left-0 right-0 h-16 border-t flex items-stretch px-3 " +
+        "absolute bottom-0 left-0 right-0 h-16 border-t flex items-stretch px-8 " +
         (dark ? "bg-stone-900 border-stone-700" : "bg-stone-100 border-stone-300")
       }
     >
