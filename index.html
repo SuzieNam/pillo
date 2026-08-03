@@ -20,7 +20,6 @@
   html, body, #root { height: 100%; margin: 0; }
   body { background: #d6d3d1; -webkit-tap-highlight-color: transparent;
          padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
-  /* html5-qrcode injects a video (and helper nodes) — make it fill the square viewfinder */
   #pillo-reader video { position:absolute; inset:0; width:100% !important; height:100% !important; object-fit:cover; }
   #pillo-reader img, #pillo-reader { border:0 !important; }
   #pillo-reader__dashboard, #pillo-reader__scan_region img { display:none !important; }
@@ -1612,6 +1611,7 @@ function CameraScreen({ goBack, goCabinet }) {
   const [camErr, setCamErr] = useState(false);
   const [scanCode, setScanCode] = useState(null);
   const [product, setProduct] = useState(null);
+  const [scanMsg, setScanMsg] = useState("");
 
   // barcode → product lookup via Open Food Facts (free, no key, CORS-ok)
   const lookupOFF = async (code) => {
@@ -1649,8 +1649,10 @@ function CameraScreen({ goBack, goCabinet }) {
     const H = window.Html5Qrcode;
     if (!H) {
       setCamErr(true);
+      setScanMsg("scanner engine not loaded");
       return;
     }
+    setScanMsg("starting camera…");
     const scanner = new H("pillo-reader", { verbose: false });
     let started = false;
     let done = false;
@@ -1668,8 +1670,12 @@ function CameraScreen({ goBack, goCabinet }) {
       )
       .then(() => {
         started = true;
+        setScanMsg("scanning for barcode…");
       })
-      .catch(() => setCamErr(true));
+      .catch((e) => {
+        setCamErr(true);
+        setScanMsg("start error: " + (e && e.message ? e.message : String(e)));
+      });
     return () => {
       if (started) scanner.stop().then(() => scanner.clear()).catch(() => {});
     };
@@ -1798,6 +1804,11 @@ function CameraScreen({ goBack, goCabinet }) {
           Point at a prescription, label, pill, or barcode — PILLO reads it and
           tells you what it found.
         </p>
+        {scanMsg && (
+          <p className="text-center text-[10px] tracking-wide text-stone-500 mt-1">
+            {scanMsg}
+          </p>
+        )}
       </div>
 
       {/* capture controls */}
