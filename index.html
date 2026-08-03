@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icon.svg" />
 <title>PILLO</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -20,6 +20,10 @@
   html, body, #root { height: 100%; margin: 0; }
   body { background: #d6d3d1; -webkit-tap-highlight-color: transparent;
          padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  /* html5-qrcode injects a video (and helper nodes) — make it fill the square viewfinder */
+  #pillo-reader video { position:absolute; inset:0; width:100% !important; height:100% !important; object-fit:cover; }
+  #pillo-reader img, #pillo-reader { border:0 !important; }
+  #pillo-reader__dashboard, #pillo-reader__scan_region img { display:none !important; }
 </style>
 </head>
 <body>
@@ -1638,41 +1642,37 @@ function CameraScreen({ goBack, goCabinet }) {
     });
   };
 
-  // live back-camera feed + continuous barcode scan while framing (HTTPS + permission)
+  // live camera + continuous barcode scan via html5-qrcode (works on iOS Safari)
   useEffect(() => {
     if (phase !== "capture") return;
     setCamErr(false);
-    const md = navigator.mediaDevices;
-    if (!md || !md.getUserMedia) {
+    const H = window.Html5Qrcode;
+    if (!H) {
       setCamErr(true);
       return;
     }
-    const Z = window.ZXing;
-    if (Z && Z.BrowserMultiFormatReader) {
-      let done = false;
-      const reader = new Z.BrowserMultiFormatReader();
-      reader
-        .decodeFromConstraints(
-          { video: { facingMode: "environment" }, audio: false },
-          videoRef.current,
-          (result) => {
-            if (result && !done) {
-              done = true;
-              handleBarcode(result.getText());
-            }
-          }
-        )
-        .catch(() => setCamErr(true));
-      return () => {
-        try { reader.reset(); } catch (e) {}
-      };
-    }
-    // fallback: live feed only (barcode lib unavailable)
-    let stream;
-    md.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-      .then((s) => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
+    const scanner = new H("pillo-reader", { verbose: false });
+    let started = false;
+    let done = false;
+    scanner
+      .start(
+        { facingMode: "environment" },
+        { fps: 10, aspectRatio: 1 },
+        (text) => {
+          if (done) return;
+          done = true;
+          scanner.stop().catch(() => {});
+          handleBarcode(text);
+        },
+        () => {}
+      )
+      .then(() => {
+        started = true;
+      })
       .catch(() => setCamErr(true));
-    return () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
+    return () => {
+      if (started) scanner.stop().then(() => scanner.clear()).catch(() => {});
+    };
   }, [phase]);
 
   const barcodeResult = (code, prod) => {
@@ -1762,13 +1762,7 @@ function CameraScreen({ goBack, goCabinet }) {
       {/* single auto-detect viewfinder — square, AI figures out the target */}
       <div className="px-6 pt-10">
         <div className="relative aspect-square bg-stone-800 overflow-hidden">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          <div id="pillo-reader" className="absolute inset-0" />
           {camErr && (
             <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
               <span className="text-[11px] tracking-wide text-stone-300">
