@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="PILLO" />
+<meta name="theme-color" content="#f5f5f4" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>PILLO</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: #d6d3d1; -webkit-tap-highlight-color: transparent;
+         padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+// ─────────────────────────────────────────────
+// PILLO — medication & supplement tracker
+// Visual v4 (revision applied):
+//  · logo: PILL + perfect-circle O (drawn, not typed)
+//  · numerals semibold · aligned pill column · nav-blue undo toast
+//  · reminder ON/OFF toggle with toast
+// ─────────────────────────────────────────────
+
+// ── realistic pill graphics (CSS) ─────────────
+const Capsule = ({ a, b }) => (
+  <span className="relative inline-block w-11 h-5 shrink-0">
+    <span className={`absolute inset-0 rounded-full ${b} shadow-md`} />
+    <span className={`absolute inset-y-0 left-0 w-1/2 rounded-l-full ${a}`} />
+    <span className="absolute top-0.5 left-2 w-4 h-1.5 bg-white opacity-40 rounded-full" />
+  </span>
+);
+
+const Softgel = ({ color, wide }) => (
+  <span
+    className={
+      "relative inline-block rounded-full shadow-md shrink-0 " +
+      color +
+      (wide ? " w-10 h-5" : " w-6 h-6")
+    }
+  >
+    <span className="absolute top-0.5 left-1.5 w-3 h-1.5 bg-white opacity-50 rounded-full" />
+  </span>
+);
+
+const Tablet = ({ color }) => (
+  <span className={`relative inline-block w-6 h-6 rounded-full shadow-md shrink-0 ${color}`}>
+    <span className="absolute inset-x-1 top-1/2 h-px bg-stone-900 opacity-20" />
+    <span className="absolute top-1 left-1.5 w-2.5 h-1 bg-white opacity-60 rounded-full" />
+  </span>
+);
+
+// ── data ──────────────────────────────────────
+const MEDS = {
+  acetaminophen: {
+    name: "Acetaminophen",
+    dose: "650mg",
+    tag: "PRESCRIPTION",
+    bar: "bg-orange-500",
+    pill: <Capsule a="bg-gradient-to-b from-orange-50 to-stone-200" b="bg-gradient-to-b from-orange-400 to-orange-600" />,
+  },
+  vitd: {
+    name: "Vitamin D",
+    dose: "1000IU",
+    tag: "SUPPLEMENT",
+    bar: "bg-pink-400",
+    pill: <Softgel color="bg-gradient-to-b from-pink-300 to-pink-500" />,
+  },
+  omega: {
+    name: "Omega-3 + D3",
+    dose: "1000mg",
+    tag: "SUPPLEMENT",
+    bar: "bg-sky-400",
+    pill: <Softgel wide color="bg-gradient-to-b from-sky-300 to-sky-500" />,
+  },
+  magnesium: {
+    name: "Magnesium",
+    dose: "350mg",
+    tag: "SUPPLEMENT",
+    bar: "bg-lime-500",
+    pill: <Tablet color="bg-gradient-to-b from-stone-50 to-stone-300" />,
+  },
+  vitc: {
+    name: "Vitamin C",
+    dose: "500mg",
+    tag: "SUPPLEMENT",
+    bar: "bg-violet-400",
+    pill: <Tablet color="bg-gradient-to-b from-violet-200 to-violet-400" />,
+  },
+};
+
+const SLOTS = [
+  { id: "morning", label: "MORNING", time: "8:00", ampm: "AM", note: "30 MIN AFTER BREAKFAST", items: ["acetaminophen", "vitd", "omega"] },
+  { id: "evening", label: "EVENING", time: "9:00", ampm: "PM", note: "REMINDER ON", items: ["acetaminophen", "magnesium"] },
+];
+
+const ALL_KEYS = SLOTS.flatMap((s) => s.items.map((id) => ({ k: `${s.id}-${id}`, id })));
+
+// thin full-bleed divider
+const Line = () => <div className="border-t border-stone-400" />;
+
+// logo: PILL + drawn perfect-circle O
+const Logo = ({ dark }) => (
+  <span
+    className={
+      "flex items-center text-[12px] font-black tracking-widest " +
+      (dark ? "text-stone-50" : "text-stone-900")
+    }
+  >
+    PILL
+    <span
+      className={
+        "inline-block w-2.5 h-2.5 rounded-full border-2 " +
+        (dark ? "border-stone-50" : "border-stone-900")
+      }
+    />
+  </span>
+);
+
+// mock AI ingredient suggestions by product name (real app: product DB / LLM)
+const SUGGEST = [
+  { k: ["vitamin c", "비타민c", "비타민 c"], tags: ["Ascorbic acid 500mg"] },
+  { k: ["vitamin d", "비타민d", "비타민 d"], tags: ["Vitamin D3 1000IU"] },
+  { k: ["omega", "오메가"], tags: ["EPA·DHA 1000mg", "Vitamin E 12mg"] },
+  { k: ["magnesium", "마그네슘"], tags: ["Magnesium 350mg"] },
+  { k: ["b complex", "비타민b", "비타민 b"], tags: ["Vitamin B6 2mg", "Vitamin B12 10µg"] },
+  { k: ["multivitamin", "종합비타민", "centrum", "센트룸"], tags: ["Vitamin A 800µg", "Vitamin C 100mg", "Vitamin D3 800IU", "Zinc 10mg"] },
+  { k: ["probiotic", "유산균"], tags: ["Lactobacillus 10B CFU"] },
+];
+
+const suggestFor = (name, ings) => {
+  const n = name.toLowerCase();
+  if (n.length < 2) return [];
+  const tags = SUGGEST.filter((s) => s.k.some((k) => n.includes(k))).flatMap((s) => s.tags);
+  return tags.filter((t) => !ings.toLowerCase().includes(t.toLowerCase()));
+};
+
+// canonical ingredient dictionary — free-text entries ("비타민 씨", "vit c" …)
+// are AI-matched to one canonical name so overlap math never splits an ingredient.
+// user confirms by tap; nothing is rewritten silently (calibrated trust)
+const CANON = [
+  { canon: "Vitamin C", aliases: ["비타민씨", "비타민 씨", "비타민c", "비타민 c", "vit c", "ascorbic acid", "ascorbic"] },
+  { canon: "Vitamin D3", aliases: ["비타민디3", "비타민디", "비타민 디", "비타민d3", "비타민 d3", "비타민d", "비타민 d", "vitamin d", "vit d3", "vit d", "콜레칼시페롤", "cholecalciferol"] },
+  { canon: "Magnesium", aliases: ["마그네슘", "마그네시움"] },
+  { canon: "Omega-3", aliases: ["오메가3", "오메가 3", "오메가쓰리", "오메가", "omega 3", "fish oil", "피쉬오일"] },
+  { canon: "Vitamin B12", aliases: ["비타민비12", "비타민 b12", "비타민b12", "코발라민", "cobalamin"] },
+  { canon: "Zinc", aliases: ["아연"] },
+  { canon: "Probiotics", aliases: ["유산균", "프로바이오틱스"] },
+];
+
+// tiny edit distance for typo matching ("vitamn c", "megnesium" …)
+const lev = (a, b) => {
+  const m = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) m[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      m[i][j] = Math.min(
+        m[i - 1][j] + 1,
+        m[i][j - 1] + 1,
+        m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+  return m[a.length][b.length];
+};
+
+// "비타민씨 500mg" / "VITAMIN C 500MG" / "vitamn c 500mg" → "Vitamin C 500mg"
+// pass 1: exact substring in any case (longest alias wins) — also fixes casing
+// pass 2: typo tolerance on the name part (before the first digit), edit distance ≤ 1–2
+// returns null if already canonical
+const normalizeToken = (t) => {
+  const low = t.toLowerCase();
+  for (const c of CANON) {
+    if (t.includes(c.canon)) return null;
+    const cands = [c.canon.toLowerCase(), ...c.aliases].sort((a, b) => b.length - a.length);
+    const hit = cands.find((a) => low.indexOf(a) !== -1);
+    if (hit) {
+      const i = low.indexOf(hit);
+      return (t.slice(0, i) + c.canon + t.slice(i + hit.length)).replace(/\s+/g, " ").trim();
+    }
+  }
+  const d = t.search(/\d/);
+  const name = (d === -1 ? t : t.slice(0, d)).trim().toLowerCase();
+  if (name.length >= 4) {
+    let best = null;
+    for (const c of CANON)
+      for (const a of [c.canon.toLowerCase(), ...c.aliases]) {
+        const dist = lev(name, a);
+        if (dist <= (a.length >= 6 ? 2 : 1) && (!best || dist < best.dist))
+          best = { canon: c.canon, dist };
+      }
+    if (best) return (best.canon + (d === -1 ? "" : " " + t.slice(d))).trim();
+  }
+  return null;
+};
+
+const normFor = (ings) =>
+  ings
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((from) => ({ from, to: normalizeToken(from) }))
+    .filter((x) => x.to && x.to !== x.from);
+
+// "9:30 PM" → part-of-day label (auto-derived)
+const slotLabel = (t) => {
+  const [time, ap] = t.split(" ");
+  let h = Number(time.split(":")[0]) % 12;
+  if (ap === "PM") h += 12;
+  if (h < 11) return "MORNING";
+  if (h < 16) return "NOON";
+  if (h < 21) return "EVENING";
+  return "NIGHT";
+};
+
+// pill colors for user-created items
+const PILL_COLORS = {
+  stone: "bg-gradient-to-b from-stone-100 to-stone-400",
+  orange: "bg-gradient-to-b from-orange-300 to-orange-500",
+  pink: "bg-gradient-to-b from-pink-300 to-pink-500",
+  violet: "bg-gradient-to-b from-violet-300 to-violet-500",
+  lime: "bg-gradient-to-b from-lime-300 to-lime-500",
+  sky: "bg-gradient-to-b from-sky-300 to-sky-500",
+};
+
+// build a CSS pill from shape + color (no photos — consistent visuals)
+const buildPill = (shape, color) => {
+  const g = PILL_COLORS[color] || PILL_COLORS.stone;
+  if (shape === "CAPSULE")
+    return <Capsule a="bg-gradient-to-b from-stone-50 to-stone-200" b={g} />;
+  if (shape === "ML") return <Softgel wide color={g} />;
+  return <Tablet color={g} />;
+};
+
+// pill for any item: predefined → MEDS, user-created → shape+color
+const pillFor = (c) =>
+  MEDS[c.id]?.pill ?? buildPill(c.shape || "TABLET", c.color || "stone");
+
+// form field
+const Field = ({ label, value, onChange, placeholder }) => (
+  <div>
+    <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">{label}</p>
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-stone-900 placeholder-stone-300"
+    />
+  </div>
+);
+
+// ── shared helpers (real data + persistence) ──
+const colorBar = (c) =>
+  ({ orange: "bg-orange-500", pink: "bg-pink-400", violet: "bg-violet-400",
+     lime: "bg-lime-500", sky: "bg-sky-400", stone: "bg-stone-400" }[c] || "bg-stone-400");
+
+const loadCabinet = () => {
+  try {
+    const s = localStorage.getItem("pillo.cabinet");
+    return s ? JSON.parse(s) : CABINET_SEED;
+  } catch (e) {
+    return CABINET_SEED;
+  }
+};
+
+const pad2 = (n) => String(n).padStart(2, "0");
+const todayKey = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const fmtToday = () => {
+  const d = new Date();
+  const wd = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][d.getDay()];
+  const mo = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][d.getMonth()];
+  return `${wd} · ${mo} ${d.getDate()} · ${d.getFullYear()}`;
+};
+const loadLog = (key) => {
+  try {
+    const s = localStorage.getItem("pillo.log." + key);
+    return s ? JSON.parse(s) : {};
+  } catch (e) {
+    return {};
+  }
+};
+const saveLog = (key, obj) => {
+  try {
+    localStorage.setItem("pillo.log." + key, JSON.stringify(obj));
+  } catch (e) {}
+};
+const slotMinutes = (t) => {
+  const [hm, ap] = t.split(" ");
+  let [h, m] = hm.split(":").map(Number);
+  if (ap === "PM" && h !== 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+  return h * 60 + (m || 0);
+};
+
+// ── Today ─────────────────────────────────────
+function TodayScreen({ goAgent, goInsights }) {
+  const cab = loadCabinet();
+  const scheduled = cab.filter((c) => c.schedule);
+  const prnItems = cab.filter((c) => !c.schedule);
+
+  // group scheduled items into time slots
+  const slotMap = {};
+  scheduled.forEach((c) => {
+    const t = c.schedule.split(" · ")[0];
+    (slotMap[t] = slotMap[t] || { time: t, items: [] }).items.push(c);
+  });
+  const slots = Object.values(slotMap).sort((a, b) => slotMinutes(a.time) - slotMinutes(b.time));
+
+  const dateKey = todayKey();
+  const [taken, setTaken] = useState(() => loadLog(dateKey));
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  useEffect(() => saveLog(dateKey, taken), [dateKey, taken]);
+
+  const total = scheduled.length;
+  const done = scheduled.filter((c) => taken[c.id]).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const overlaps = computeOverlaps(cab);
+  const advice = overlaps[0];
+  const takenColors = scheduled.filter((c) => taken[c.id]).map((c) => colorBar(c.color));
+
+  const showToast = (msg, undoFn) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, undoFn });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+  const toggle = (c) => {
+    const now = !taken[c.id];
+    setTaken((t) => ({ ...t, [c.id]: now }));
+    showToast(now ? `${c.brand} marked as taken` : `${c.brand} unmarked`, () =>
+      setTaken((t) => ({ ...t, [c.id]: !now }))
+    );
+  };
+  const undo = () => {
+    if (toast?.undoFn) toast.undoFn();
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto pb-24">
+      {/* masthead — thick line, full-bleed */}
+      <div className="border-b-2 border-stone-900">
+        <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+          <Logo />
+          {/* date → Insights shortcut */}
+          <button
+            onClick={goInsights}
+            className="text-[10px] tracking-wider text-stone-500"
+          >
+            {fmtToday()}
+          </button>
+        </div>
+      </div>
+
+      {/* hero stat */}
+      <div className="px-5 pt-5 pb-1">
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-sm font-bold text-stone-900">Taken</p>
+            <p className="text-xs text-stone-500">{done} of {total} doses today</p>
+          </div>
+          <p className="font-sans font-semibold text-7xl leading-none tracking-tight text-stone-900">
+            {pct}<span className="text-4xl">%</span>
+          </p>
+        </div>
+
+        {/* segmented bar — one segment per dose */}
+        {/* fills from the left regardless of which dose was taken */}
+        <div className="flex h-6 mt-4 w-full">
+          {scheduled.map((_, i) => (
+            <span
+              key={i}
+              className={"flex-1 " + (i < takenColors.length ? takenColors[i] : "bg-stone-300")}
+            />
+          ))}
+        </div>
+        <div className="flex justify-between text-[11px] text-stone-700 mt-1.5">
+          <span>Taken <b>{done}</b></span>
+          <span>Left <b>{total - done}</b></span>
+        </div>
+      </div>
+
+      {/* AI advice — no divider above, spacing only */}
+      <div className="mx-5 mt-4 mb-6 bg-stone-900 text-stone-50 px-4 py-3">
+        <button
+          onClick={goAgent}
+          className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-stone-300"
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
+          </svg>
+          AGENT ADVICE
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M1.5 6h9M7 2.5L10.5 6 7 9.5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+        {advice ? (
+          <>
+            <p className="text-xs leading-relaxed mt-1.5">
+              <b>{advice.name} appears in {advice.parts.length} of your items.</b>{" "}
+              Combined {advice.total}{advice.unit} — {advice.pct}% of the daily upper limit.
+            </p>
+            <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
+              PLEASE CONSULT WITH YOUR PHARMACIST OR DOCTOR
+            </p>
+          </>
+        ) : (
+          <p className="text-xs leading-relaxed mt-1.5">
+            No ingredient overlaps across your items right now.
+          </p>
+        )}
+      </div>
+
+      {/* timeline — slots derived from the cabinet schedules */}
+      {slots.map((slot) => {
+        const [hm, ap] = slot.time.split(" ");
+        const slotDone = slot.items.every((c) => taken[c.id]);
+        return (
+          <div key={slot.time}>
+            <Line />
+            <div className="px-5 pt-4 mb-3 flex items-baseline justify-between">
+              <p className="font-sans font-semibold text-2xl tracking-tight text-stone-900">
+                {hm}
+                <span className="text-sm ml-1">{ap}</span>
+              </p>
+              <p className="text-[10px] tracking-widest text-stone-500">
+                {slotLabel(slot.time)} · {slotDone ? "DONE" : `${slot.items.length} TO TAKE`}
+              </p>
+            </div>
+
+            <div className="px-5 mb-8">
+              <div className="space-y-px bg-stone-300 border border-stone-300">
+                {slot.items.map((c) => {
+                  const isTaken = !!taken[c.id];
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => toggle(c)}
+                      className={
+                        "w-full flex items-center gap-3 px-4 py-4 text-left " +
+                        (isTaken ? "bg-stone-100" : "bg-white")
+                      }
+                    >
+                      <span className={"w-12 flex justify-center shrink-0 " + (isTaken ? "opacity-30" : "")}>
+                        {pillFor(c)}
+                      </span>
+                      <span className="flex-1">
+                        <span className={"block text-sm font-bold " + (isTaken ? "text-stone-400" : "text-stone-900")}>
+                          {c.brand}
+                        </span>
+                        <span className="block text-[10px] tracking-widest text-stone-400">
+                          {c.dose} · {c.tag}
+                        </span>
+                      </span>
+                      <span
+                        className={
+                          "w-7 h-7 rounded-full flex items-center justify-center shrink-0 " +
+                          (isTaken ? "bg-stone-900 text-stone-50" : "border-2 border-stone-900")
+                        }
+                        aria-label={isTaken ? "Taken" : "Mark as taken"}
+                      >
+                        {isTaken && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6.5L4.8 9L10 3" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* as-needed items (e.g. 아임비타 D) — log when taken */}
+      {prnItems.length > 0 && (
+        <>
+          <Line />
+          <div className="px-5 pt-5 pb-4">
+            <p className="text-[10px] font-bold tracking-widest text-stone-900 mb-3">AS NEEDED</p>
+            <div className="space-y-px bg-stone-300 border border-stone-300">
+              {prnItems.map((c) => {
+                const isTaken = !!taken[c.id];
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => toggle(c)}
+                    className={
+                      "w-full flex items-center gap-3 px-4 py-4 text-left " +
+                      (isTaken ? "bg-stone-100" : "bg-white")
+                    }
+                  >
+                    <span className={"w-12 flex justify-center shrink-0 " + (isTaken ? "opacity-30" : "")}>
+                      {pillFor(c)}
+                    </span>
+                    <span className="flex-1">
+                      <span className={"block text-sm font-bold " + (isTaken ? "text-stone-400" : "text-stone-900")}>
+                        {c.brand}
+                      </span>
+                      <span className="block text-[10px] tracking-widest text-stone-400">
+                        {c.dose} · {c.tag}
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        "text-[10px] font-bold tracking-widest px-2.5 py-1 border shrink-0 " +
+                        (isTaken ? "bg-stone-900 border-stone-900 text-stone-50" : "border-stone-400 text-stone-500")
+                      }
+                    >
+                      {isTaken ? "TAKEN ✓" : "LOG"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* undo toast — compact capsule, translucent deep navy */}
+      {toast && (
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800 bg-opacity-90 text-slate-50 pl-4 pr-3 py-2 rounded-full flex items-center gap-3 shadow-xl whitespace-nowrap max-w-[90%]">
+          <span className="text-xs truncate">{toast.msg}</span>
+          <button
+            onClick={undo}
+            className="text-[10px] font-bold tracking-widest underline underline-offset-2 shrink-0"
+          >
+            UNDO
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Cabinet ───────────────────────────────────
+// real cabinet (personal use). ing = structured for overlap math; chips = display
+const mkChips = (ing) => ing.map((i) => ({ n: `${i.name} ${i.amt}${i.unit}`, key: i.key }));
+const CABINET_SEED = [
+  {
+    id: "naturelo", brand: "NATURELO One Daily", dose: "1 CAP", tag: "SUPPLEMENT",
+    purpose: "Daily multivitamin", schedule: "12:00 PM", shape: "CAPSULE", color: "orange",
+    ing: [
+      { key: "vita", name: "Vitamin A", amt: 900, unit: "µg" },
+      { key: "vitc", name: "Vitamin C", amt: 90, unit: "mg" },
+      { key: "vitd", name: "Vitamin D3", amt: 800, unit: "IU" },
+      { key: "vite", name: "Vitamin E", amt: 15, unit: "mg" },
+      { key: "folate", name: "Folate", amt: 400, unit: "µg" },
+      { key: "b12", name: "Vitamin B12", amt: 2.4, unit: "µg" },
+      { key: "calcium", name: "Calcium", amt: 50, unit: "mg" },
+      { key: "iron", name: "Iron", amt: 9, unit: "mg" },
+      { key: "iodine", name: "Iodine", amt: 100, unit: "µg" },
+      { key: "magnesium", name: "Magnesium", amt: 50, unit: "mg" },
+      { key: "zinc", name: "Zinc", amt: 10, unit: "mg" },
+      { key: "selenium", name: "Selenium", amt: 50, unit: "µg" },
+      { key: "vitk2", name: "Vitamin K2", amt: 45, unit: "µg" },
+    ],
+  },
+  {
+    id: "femdophilus", brand: "Jarrow Fem-Dophilus", dose: "10B CFU", tag: "SUPPLEMENT",
+    purpose: "Vaginal & gut health", schedule: "9:00 PM", shape: "CAPSULE", color: "pink",
+    ing: [
+      { key: "probiotic", name: "Probiotics", amt: 10, unit: "B CFU" },
+      { key: "sodium", name: "Sodium", amt: 10, unit: "mg" },
+    ],
+  },
+  {
+    id: "lactofit", brand: "Lactofit Gold", dose: "20B CFU", tag: "SUPPLEMENT",
+    purpose: "Gut health", schedule: "9:00 PM", shape: "ML", color: "lime",
+    ing: [
+      { key: "probiotic", name: "Probiotics", amt: 20, unit: "B CFU" },
+      { key: "zinc", name: "Zinc", amt: 2.55, unit: "mg" },
+    ],
+  },
+  {
+    id: "imvita_d", brand: "아임비타 Vitamin D", dose: "2000IU", tag: "SUPPLEMENT",
+    purpose: "Vitamin D (as needed)", schedule: null, prn: true, shape: "TABLET", color: "violet",
+    ing: [
+      { key: "vitd", name: "Vitamin D3", amt: 2000, unit: "IU" },
+      { key: "vite", name: "Vitamin E", amt: 5.5, unit: "mg" },
+      { key: "zinc", name: "Zinc", amt: 3, unit: "mg" },
+    ],
+  },
+].map((c) => ({ ...c, chips: mkChips(c.ing) }));
+
+// daily upper limits (식약처/일반 기준, 참고용 — 판단은 약사). Day 3에서 확장
+const UL = {
+  zinc: { limit: 35, unit: "mg" },
+  vitd: { limit: 4000, unit: "IU" },
+  vite: { limit: 540, unit: "mg" },
+};
+
+// ingredients (with a known UL) that appear in 2+ items → summed vs limit
+const computeOverlaps = (items) => {
+  const byKey = {};
+  items.forEach((c) =>
+    (c.ing || []).forEach((i) => {
+      if (!UL[i.key]) return;
+      (byKey[i.key] =
+        byKey[i.key] || { key: i.key, name: i.name, unit: i.unit, parts: [] }).parts.push({
+        brand: c.brand,
+        amt: i.amt,
+        prn: !!c.prn,
+      });
+    })
+  );
+  return Object.values(byKey)
+    .filter((g) => g.parts.length >= 2)
+    .map((g) => {
+      const total = Math.round(g.parts.reduce((s, p) => s + p.amt, 0) * 100) / 100;
+      return { ...g, total, limit: UL[g.key].limit, pct: Math.round((total / UL[g.key].limit) * 100) };
+    })
+    .sort((a, b) => b.pct - a.pct);
+};
+
+function CabinetScreen({ goAgent, goCamera }) {
+  const [items, setItems] = useState(() => {
+    try {
+      const s = localStorage.getItem("pillo.cabinet");
+      return s ? JSON.parse(s) : CABINET_SEED;
+    } catch (e) {
+      return CABINET_SEED;
+    }
+  });
+  const [sel, setSel] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const item = items.find((c) => c.id === sel);
+
+  // persist the cabinet to the device
+  useEffect(() => {
+    try {
+      localStorage.setItem("pillo.cabinet", JSON.stringify(items));
+    } catch (e) {}
+  }, [items]);
+
+  // ingredients shared across 2+ items, summed vs their daily upper limit
+  const overlaps = computeOverlaps(items);
+  const olKeys = new Set(overlaps.map((g) => g.key));
+  const hasOverlap = overlaps.length > 0;
+
+  const showToast = (msg, undoFn) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, undoFn });
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
+  const undo = () => {
+    if (toast?.undoFn) toast.undoFn();
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+  };
+
+  const deleteItem = (id) => {
+    const idx = items.findIndex((c) => c.id === id);
+    const removed = items[idx];
+    setItems((arr) => arr.filter((c) => c.id !== id));
+    setSel(null);
+    showToast(`${removed.brand} deleted`, () =>
+      setItems((arr) => {
+        const copy = [...arr];
+        copy.splice(idx, 0, removed);
+        return copy;
+      })
+    );
+  };
+
+  // manual add / edit form
+  const [form, setForm] = useState(null);
+  const openAdd = () =>
+    setForm({
+      mode: "add", brand: "", amount: 1, unit: "TABLET", strength: "",
+      tag: "SUPPLEMENT", purpose: "", slots: [], hr: "8", min: "00", ap: "AM",
+      ings: "", color: "stone",
+    });
+  const openEdit = (c) => {
+    setSel(null);
+    setForm({
+      mode: "edit",
+      id: c.id,
+      brand: c.brand,
+      amount: 1,
+      unit: c.shape || "TABLET",
+      strength: c.dose,
+      color: c.color || "stone",
+      tag: c.tag,
+      purpose: c.purpose,
+      slots: c.schedule ? c.schedule.split(" · ") : [],
+      hr: "8", min: "00", ap: "AM",
+      ings: c.chips.map((ch) => ch.n).join(", "),
+    });
+  };
+  const saveForm = () => {
+    if (!form.brand.trim()) return;
+    const chips = form.ings
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((n) => ({ n }));
+    const data = {
+      brand: form.brand.trim(),
+      // strength if known (auto-uppercased), otherwise "1 TABLET" style
+      dose: form.strength.trim()
+        ? form.strength.trim().toUpperCase()
+        : `${form.amount} ${form.unit}`,
+      tag: form.tag,
+      purpose: form.purpose.trim(),
+      schedule: form.slots.length ? form.slots.join(" · ") : null,
+      chips: chips.length ? chips : [{ n: "—" }],
+      shape: form.unit,
+      color: form.color,
+    };
+    if (form.mode === "add") {
+      setItems((arr) => [...arr, { id: "m" + Date.now(), ...data }]);
+      showToast(`${data.brand} added`);
+    } else {
+      setItems((arr) => arr.map((c) => (c.id === form.id ? { ...c, ...data } : c)));
+      showToast(`${data.brand} updated`);
+    }
+    setForm(null);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto pb-24">
+      {/* masthead — same paper bg as Today */}
+      <div className="border-b-2 border-stone-900">
+        <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+          <Logo />
+          <span className="text-[10px] tracking-wider text-stone-500">
+            FRI · JUL 11 · 2026
+          </span>
+        </div>
+      </div>
+
+      {/* hero — count as small text */}
+      <div className="px-5 pt-5 pb-4 flex items-end justify-between">
+        <div>
+          <p className="text-sm font-bold text-stone-900">Cabinet</p>
+          <p className="text-xs text-stone-500">everything you take, in one place</p>
+        </div>
+        <p className="text-[11px] font-bold tracking-widest text-stone-700 pb-0.5">
+          {items.length} ITEMS
+        </p>
+      </div>
+
+      {/* ingredient check — clear state (shown when no overlaps exist) */}
+      {!hasOverlap && (
+        <div className="mx-5 mb-6 border-2 border-stone-900 bg-white px-4 py-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold tracking-widest text-stone-900">
+              INGREDIENT CHECK
+            </p>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-lime-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-lime-500" />
+              CLEAR
+            </span>
+          </div>
+          <p className="text-xs leading-relaxed mt-1.5 text-stone-800">
+            No overlapping ingredients across your {items.length} items.
+            Everything is within daily limits.
+          </p>
+          <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
+            RE-CHECKED EVERY TIME YOU ADD AN ITEM
+          </p>
+        </div>
+      )}
+
+      {/* ingredient overlap — computed from your items' ingredients */}
+      {hasOverlap && (
+      <div className="mx-5 mb-6 border-2 border-stone-900 bg-white px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold tracking-widest text-stone-900">
+            INGREDIENT OVERLAP
+          </p>
+          <span className="text-[10px] tracking-widest text-stone-400">
+            {overlaps.length} FROM 2+ ITEMS
+          </span>
+        </div>
+
+        <div className="mt-3 space-y-3.5">
+          {overlaps.map((g) => {
+            const over = g.pct > 100;
+            const near = !over && g.pct >= 80;
+            return (
+              <div key={g.key}>
+                <div className="flex justify-between items-baseline text-[11px]">
+                  <span className="font-bold text-stone-900">{g.name}</span>
+                  <span className={over ? "text-red-600" : "text-stone-500"}>
+                    <b className={over ? "text-red-600" : "text-stone-900"}>
+                      {g.total}{g.unit}
+                    </b>{" "}
+                    / {g.limit}{g.unit} · {g.pct}%
+                  </span>
+                </div>
+                <div className="mt-1 space-y-0.5">
+                  {g.parts.map((p, i) => (
+                    <div key={i} className="flex justify-between text-[10px] text-stone-500">
+                      <span>
+                        {p.brand}
+                        {p.prn && <span className="text-stone-400"> · as needed</span>}
+                      </span>
+                      <span>{p.amt}{g.unit}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="h-1.5 mt-1.5 bg-stone-200">
+                  <span
+                    className={"block h-full " + (over ? "bg-red-500" : near ? "bg-pink-500" : "bg-pink-400")}
+                    style={{ width: Math.min(g.pct, 100) + "%" }}
+                  />
+                </div>
+                <p className="text-[9px] tracking-widest text-stone-400 mt-1">
+                  {over ? "OVER LIMIT" : g.pct === 100 ? "AT LIMIT" : near ? "NEAR LIMIT" : "WITHIN LIMIT"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 pt-2.5 border-t border-stone-300">
+          <button
+            onClick={goAgent}
+            className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-stone-500"
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
+            </svg>
+            AGENT
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M1.5 6h9M7 2.5L10.5 6 7 9.5" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+          <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
+            UPPER LIMITS ARE REFERENCE VALUES — PLEASE CONSULT YOUR PHARMACIST OR DOCTOR
+          </p>
+        </div>
+      </div>
+      )}
+
+      {/* specimen grid — tap a card for details */}
+      <Line />
+      <div className="px-5 pt-4">
+        <p className="text-[10px] font-bold tracking-widest text-stone-500 mb-3">
+          ALL ITEMS
+        </p>
+        <div className="grid grid-cols-2 gap-px bg-stone-300 border border-stone-300">
+          {items.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSel(c.id)}
+              className="relative bg-white text-stone-900 flex flex-col text-center"
+            >
+              {(c.ing || []).some((i) => olKeys.has(i.key)) && (
+                <span
+                  className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-pink-500"
+                  aria-label="shared ingredient"
+                />
+              )}
+              <span className="text-[8px] tracking-widest text-stone-400 pt-3">
+                {c.dose}
+              </span>
+              <span className="h-20 flex items-center justify-center">
+                <span className="transform scale-150">{pillFor(c)}</span>
+              </span>
+              <span className="mx-3 border-t border-stone-300 pt-2 pb-3">
+                <span className="block text-[11px] font-bold leading-tight">
+                  {c.brand}
+                </span>
+                <span className="block text-[8px] tracking-widest text-stone-400 mt-0.5">
+                  {c.tag}
+                </span>
+              </span>
+            </button>
+          ))}
+          {/* add-item tile completes the grid */}
+          <button
+            onClick={openAdd}
+            className="bg-stone-50 text-stone-500 flex flex-col items-center justify-center py-6"
+          >
+            <span className="text-2xl leading-none">+</span>
+            <span className="text-[9px] font-bold tracking-widest mt-1.5">ADD ITEM</span>
+            <span className="text-[8px] tracking-widest text-stone-400 mt-0.5">
+              MANUAL OR AI CAMERA
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* detail sheet */}
+      {item && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col justify-end"
+          onClick={() => setSel(null)}
+        >
+          <div className="absolute inset-0 bg-stone-900 bg-opacity-60" />
+          <div
+            className="relative bg-white text-stone-900 max-h-full overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b-2 border-stone-900">
+              <div>
+                <p className="text-sm font-bold">{item.brand}</p>
+                <p className="text-[10px] tracking-widest text-stone-400">
+                  {item.dose} · {item.tag}
+                </p>
+              </div>
+              <button
+                onClick={() => setSel(null)}
+                className="text-lg leading-none px-1"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="h-24 flex items-center justify-center border-b border-stone-200">
+              <span className="transform scale-150">{pillFor(item)}</span>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                PURPOSE
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold flex-1 pr-3">{item.purpose}</p>
+                <button
+                  onClick={() => openEdit(item)}
+                  className="text-[10px] font-bold tracking-widest text-stone-400 underline underline-offset-2 shrink-0"
+                >
+                  EDIT →
+                </button>
+              </div>
+
+              <p className="text-[10px] font-bold tracking-widest text-stone-400 mt-4 mb-2">
+                INGREDIENTS
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {item.chips.map((c) => (
+                  <span
+                    key={c.n}
+                    className={
+                      "text-[9px] tracking-wide px-2 py-0.5 rounded-full border " +
+                      (olKeys.has(c.key)
+                        ? "border-pink-400 text-pink-600 font-bold"
+                        : "border-stone-300 text-stone-500")
+                    }
+                  >
+                    {c.n}
+                  </span>
+                ))}
+              </div>
+
+              <p className="text-[10px] font-bold tracking-widest text-stone-400 mt-4 mb-1">
+                SCHEDULE
+              </p>
+              {item.schedule ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{item.schedule}</p>
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="text-[10px] font-bold tracking-widest text-stone-400 underline underline-offset-2"
+                  >
+                    EDIT →
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => openEdit(item)}
+                  className="w-full mt-1 border-2 border-stone-900 text-stone-900 py-2 text-[10px] font-bold tracking-widest"
+                >
+                  + ADD TO SCHEDULE
+                </button>
+              )}
+
+              {(() => {
+                const shared = (item.ing || []).filter((i) => olKeys.has(i.key));
+                if (!shared.length) return null;
+                return (
+                  <div className="mt-4 bg-stone-900 text-stone-50 px-4 py-3">
+                    <p className="text-[10px] font-bold tracking-widest text-stone-300">
+                      ✦ SHARED INGREDIENT{shared.length > 1 ? "S" : ""}
+                    </p>
+                    <p className="text-xs leading-relaxed mt-1.5">
+                      {shared.map((i) => i.name).join(", ")} also appear
+                      {shared.length > 1 ? "" : "s"} in your other items — see the overlap
+                      panel for the combined total.
+                    </p>
+                    <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
+                      PLEASE CONSULT WITH YOUR PHARMACIST OR DOCTOR
+                    </p>
+                  </div>
+                );
+              })()}
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className="text-[10px] tracking-widest text-red-600 underline underline-offset-2"
+                >
+                  DELETE ITEM
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* manual add / edit form sheet */}
+      {form && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col justify-end"
+          onClick={() => setForm(null)}
+        >
+          <div className="absolute inset-0 bg-stone-900 bg-opacity-60" />
+          <div
+            className="relative bg-white text-stone-900 max-h-full overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b-2 border-stone-900">
+              <p className="text-sm font-bold">
+                {form.mode === "add" ? "Add item" : `Edit ${form.brand}`}
+              </p>
+              <button
+                onClick={() => setForm(null)}
+                className="text-lg leading-none px-1"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {form.mode === "add" && (
+              <button
+                onClick={goCamera}
+                className="w-full text-left px-5 py-3 border-b border-stone-200 text-[10px] font-bold tracking-widest text-stone-500"
+              >
+                ◉ SCAN INSTEAD — AI CAMERA →
+              </button>
+            )}
+
+            <div className="px-5 py-4 space-y-4">
+              <Field
+                label="NAME"
+                value={form.brand}
+                onChange={(v) => setForm({ ...form, brand: v })}
+                placeholder="e.g. Vitamin B Complex"
+              />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                    AMOUNT PER INTAKE
+                  </p>
+                  <div className="flex items-center border border-stone-300">
+                    <button
+                      onClick={() => setForm({ ...form, amount: Math.max(1, form.amount - 1) })}
+                      className="px-3 py-2 text-stone-500"
+                    >
+                      −
+                    </button>
+                    <span className="flex-1 text-center text-sm font-semibold">{form.amount}</span>
+                    <button
+                      onClick={() => setForm({ ...form, amount: Math.min(10, form.amount + 1) })}
+                      className="px-3 py-2 text-stone-500"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">UNIT</p>
+                  <div className="flex border border-stone-300">
+                    {[
+                      { u: "TABLET", icon: <span className="w-3 h-3 rounded-full bg-current block" /> },
+                      { u: "CAPSULE", icon: <span className="w-5 h-2.5 rounded-full bg-current block" /> },
+                      { u: "ML", icon: <span className="w-2.5 h-3 rounded-b-full bg-current block" /> },
+                    ].map(({ u, icon }) => (
+                      <button
+                        key={u}
+                        onClick={() => setForm({ ...form, unit: u })}
+                        className={
+                          "flex-1 py-1.5 flex flex-col items-center gap-1 text-[8px] font-bold tracking-wide " +
+                          (form.unit === u ? "bg-stone-900 text-stone-50" : "text-stone-400")
+                        }
+                      >
+                        {icon}
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                  PILL COLOR — FOR THE ICON
+                </p>
+                <div className="flex items-center gap-2">
+                  {Object.keys(PILL_COLORS).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setForm({ ...form, color: c })}
+                      aria-label={c}
+                      className={
+                        "w-7 h-7 rounded-full border-2 " +
+                        PILL_COLORS[c] +
+                        (form.color === c ? " border-stone-900" : " border-stone-200")
+                      }
+                    />
+                  ))}
+                  <span className="ml-auto pr-1 h-7 flex items-center">
+                    {buildPill(form.unit, form.color)}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <Field
+                  label="STRENGTH (OPTIONAL)"
+                  value={form.strength}
+                  onChange={(v) => setForm({ ...form, strength: v })}
+                  placeholder="e.g. 500mg — leave blank if unsure"
+                />
+                <p className="text-[9px] tracking-wide text-stone-400 mt-1">
+                  IT'S PRINTED ON THE LABEL — OR LET AI CAMERA READ IT FOR YOU
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">TYPE</p>
+                <div className="flex border border-stone-300">
+                  {["SUPPLEMENT", "PRESCRIPTION"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setForm({ ...form, tag: t })}
+                      className={
+                        "flex-1 py-2 text-[10px] font-bold tracking-widest " +
+                        (form.tag === t ? "bg-stone-900 text-stone-50" : "text-stone-400")
+                      }
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Field
+                label="PURPOSE"
+                value={form.purpose}
+                onChange={(v) => setForm({ ...form, purpose: v })}
+                placeholder="e.g. Daily nutrition"
+              />
+              <div>
+                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                  SCHEDULE (OPTIONAL)
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={form.hr}
+                    onChange={(e) => setForm({ ...form, hr: e.target.value })}
+                    className="border border-stone-300 bg-white px-2 py-2 text-sm font-semibold outline-none focus:border-stone-900"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <span className="text-stone-400 font-bold">:</span>
+                  <select
+                    value={form.min}
+                    onChange={(e) => setForm({ ...form, min: e.target.value })}
+                    className="border border-stone-300 bg-white px-2 py-2 text-sm font-semibold outline-none focus:border-stone-900"
+                  >
+                    {["00", "05", "10", "15", "20", "30", "40", "45", "50"].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={form.ap}
+                    onChange={(e) => setForm({ ...form, ap: e.target.value })}
+                    className="border border-stone-300 bg-white px-2 py-2 text-sm font-semibold outline-none focus:border-stone-900"
+                  >
+                    <option>AM</option>
+                    <option>PM</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      const t = `${form.hr}:${form.min} ${form.ap}`;
+                      if (!form.slots.includes(t))
+                        setForm({ ...form, slots: [...form.slots, t] });
+                    }}
+                    className="ml-auto bg-stone-900 text-stone-50 px-4 py-2 text-[10px] font-bold tracking-widest"
+                  >
+                    ADD
+                  </button>
+                </div>
+                {form.slots.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {form.slots.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() =>
+                          setForm({ ...form, slots: form.slots.filter((s) => s !== t) })
+                        }
+                        className="text-[9px] font-bold tracking-wide px-2 py-0.5 rounded-full bg-stone-900 text-stone-50"
+                      >
+                        {t} · {slotLabel(t)} ✕
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <Field
+                  label="INGREDIENTS (COMMA SEPARATED)"
+                  value={form.ings}
+                  onChange={(v) => setForm({ ...form, ings: v })}
+                  placeholder="e.g. Vitamin B6 2mg, Vitamin B12 10µg"
+                />
+                {/* AI normalization — matched free text → canonical ingredient, confirm by tap */}
+                {normFor(form.ings).length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[9px] font-bold tracking-widest text-stone-400 mb-1">
+                      ✦ AI MATCHED — TAP TO STANDARDIZE
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {normFor(form.ings).map((s) => (
+                        <button
+                          key={s.from}
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              ings: form.ings
+                                .split(",")
+                                .map((t) => (t.trim() === s.from ? s.to : t.trim()))
+                                .join(", "),
+                            })
+                          }
+                          className="text-[9px] tracking-wide px-2 py-0.5 rounded-full border border-stone-900 text-stone-700"
+                        >
+                          {s.from} → <b>{s.to}</b>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {suggestFor(form.brand, form.ings).length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[9px] font-bold tracking-widest text-stone-400 mb-1">
+                      ✦ AI SUGGESTED — TAP TO ADD
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestFor(form.brand, form.ings).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() =>
+                            setForm({ ...form, ings: form.ings ? `${form.ings}, ${s}` : s })
+                          }
+                          className="text-[9px] tracking-wide px-2 py-0.5 rounded-full border border-stone-900 text-stone-700"
+                        >
+                          + {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={saveForm}
+                disabled={!form.brand.trim()}
+                className={
+                  "w-full py-3 text-[11px] font-bold tracking-widest " +
+                  (form.brand.trim()
+                    ? "bg-stone-900 text-stone-50"
+                    : "bg-stone-200 text-stone-400")
+                }
+              >
+                SAVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* undo toast — same capsule as Today */}
+      {toast && (
+        <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-20 bg-slate-800 bg-opacity-90 text-slate-50 pl-4 pr-3 py-2 rounded-full flex items-center gap-3 shadow-xl whitespace-nowrap max-w-[90%]">
+          <span className="text-xs truncate">{toast.msg}</span>
+          {toast.undoFn && (
+            <button
+              onClick={undo}
+              className="text-[10px] font-bold tracking-widest underline underline-offset-2 shrink-0"
+            >
+              UNDO
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Insights ──────────────────────────────────
+// computed from real daily logs (localStorage "pillo.log.<date>")
+const MON3 = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const DLine = () => <div className="border-t border-stone-700" />;
+
+const readAllLogs = () => {
+  const out = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf("pillo.log.") === 0) {
+        out[k.slice(10)] = JSON.parse(localStorage.getItem(k)) || {};
+      }
+    }
+  } catch (e) {}
+  return out;
+};
+const toDate = (key) => { const [y, m, d] = key.split("-").map(Number); return new Date(y, m - 1, d); };
+const dateAdd = (key, days) => {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + days);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+};
+const daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / 86400000);
+const wdShort = (key) => ["SUN","MON","TUE","WED","THU","FRI","SAT"][toDate(key).getDay()];
+const mondayOf = (key) => dateAdd(key, -((toDate(key).getDay() + 6) % 7));
+const mLabel = (key) => { const [y, m, d] = key.split("-").map(Number); return `${MON3[m - 1]} ${d}`; };
+
+function InsightsScreen({ goAgent }) {
+  const cab = loadCabinet();
+  const scheduled = cab.filter((c) => c.schedule);
+  const N = scheduled.length;
+  const keyName = {};
+  cab.forEach((c) => (c.ing || []).forEach((i) => (keyName[i.key] = i.name)));
+
+  const logs = readAllLogs();
+  const today = todayKey();
+  const logDates = Object.keys(logs).sort();
+  const start = logDates.length ? logDates[0] : today;
+
+  const takenN = (date) => scheduled.filter((c) => logs[date] && logs[date][c.id]).length;
+
+  // stats over completed days (before today)
+  let perfect = 0, missed = 0, streak = 0;
+  for (let dk = start; dk < today; dk = dateAdd(dk, 1)) {
+    const t = takenN(dk);
+    if (N > 0 && t === N) perfect++;
+    missed += Math.max(0, N - t);
+  }
+  for (let dk = N > 0 && takenN(today) === N ? today : dateAdd(today, -1); dk >= start; dk = dateAdd(dk, -1)) {
+    if (N > 0 && takenN(dk) === N) streak++; else break;
+  }
+
+  // weekly pager (0 = current week, negative = past)
+  const [wk, setWk] = useState(0);
+  const curMon = mondayOf(today);
+  const weeksBack = Math.max(0, Math.round(daysBetween(mondayOf(start), curMon) / 7));
+  const weekMon = dateAdd(curMon, wk * 7);
+  const weekDays = Array.from({ length: 7 }, (_, i) => dateAdd(weekMon, i));
+  const weekLabel = `${mLabel(weekDays[0])} – ${mLabel(weekDays[6])}`;
+
+  // ingredient levels for the selected week — avg actual daily intake vs UL
+  const dataDays = weekDays.filter((dk) => dk <= today && dk >= start && logs[dk]);
+  const levels = Object.keys(UL).map((key) => {
+    let sum = 0;
+    dataDays.forEach((dk) => cab.forEach((c) => {
+      if (logs[dk][c.id]) (c.ing || []).forEach((i) => { if (i.key === key) sum += i.amt; });
+    }));
+    const avg = dataDays.length ? sum / dataDays.length : 0;
+    const cap = UL[key].limit;
+    return { key, name: keyName[key] || key, avg: Math.round(avg * 100) / 100,
+      cap, unit: UL[key].unit, pct: cap ? Math.round((avg / cap) * 100) : 0 };
+  }).filter((l) => l.avg > 0).sort((a, b) => b.pct - a.pct);
+
+  const [year, setYear] = useState(false);
+
+  return (
+    <div className="flex-1 overflow-y-auto pb-24 bg-stone-900">
+      {/* masthead */}
+      <div className="border-b-2 border-stone-50">
+        <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+          <Logo dark />
+          <span className="text-[10px] tracking-wider text-stone-400">{fmtToday()}</span>
+        </div>
+      </div>
+
+      {/* hero */}
+      <div className="px-5 pt-6 pb-5 flex items-center justify-between">
+        <p className="text-sm font-bold text-stone-50">Insights</p>
+        <button onClick={() => setYear(true)} aria-label="Yearly log" className="text-stone-300 p-1">
+          <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="1.5" y="2.5" width="13" height="12" />
+            <path d="M1.5 6.5h13M5 0.5v3.5M11 0.5v3.5" />
+          </svg>
+        </button>
+      </div>
+
+      {logDates.length === 0 && (
+        <p className="px-5 pb-4 text-[11px] text-stone-500 leading-relaxed">
+          No history yet. Check your doses on Today and your stats will build here, day by day.
+        </p>
+      )}
+
+      {/* stats strip */}
+      <DLine />
+      <div className="grid grid-cols-3 divide-x divide-stone-700">
+        {[[perfect, "PERFECT DAYS"], [missed, "DOSES MISSED"], [streak, "DAY STREAK"]].map(([n, label]) => (
+          <div key={label} className="px-5 py-5">
+            <p className="font-sans font-semibold text-2xl leading-none text-stone-50">{n}</p>
+            <p className="text-[9px] tracking-widest text-stone-500 mt-1.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* weekly intake log */}
+      <DLine />
+      <div className="px-5 pt-6 pb-2 flex items-center justify-between">
+        <p className="text-[10px] font-bold tracking-widest text-stone-50">INTAKE LOG</p>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setWk(wk - 1)} disabled={wk <= -weeksBack} aria-label="Previous week"
+            className={"px-2 py-1 text-xs " + (wk <= -weeksBack ? "text-stone-700" : "text-stone-300")}>←</button>
+          <span className="text-[9px] tracking-widest text-stone-400 w-24 text-center whitespace-nowrap">{weekLabel}</span>
+          <button onClick={() => setWk(wk + 1)} disabled={wk >= 0} aria-label="Next week"
+            className={"px-2 py-1 text-xs " + (wk >= 0 ? "text-stone-700" : "text-stone-300")}>→</button>
+        </div>
+      </div>
+      <div className="divide-y divide-stone-800">
+        {weekDays.map((dk) => {
+          const future = dk > today || dk < start;
+          const isToday = dk === today;
+          const day = toDate(dk).getDate();
+          const missedDay = !future && !isToday ? scheduled.filter((c) => !(logs[dk] && logs[dk][c.id])).length : 0;
+          return (
+            <div key={dk} className="flex items-center px-5 py-3">
+              <span className={"w-7 font-sans font-semibold text-sm " + (future ? "text-stone-600" : "text-stone-50")}>{day}</span>
+              <span className="w-10 text-[9px] tracking-widest text-stone-500">{wdShort(dk)}</span>
+              <span className="flex flex-wrap gap-2 flex-1 py-0.5">
+                {scheduled.map((c) => {
+                  const taken = logs[dk] && logs[dk][c.id];
+                  const cls = taken ? colorBar(c.color)
+                    : future || isToday ? "border border-stone-700"
+                    : "border border-stone-500";
+                  return <span key={c.id} className={"w-2.5 h-2.5 rounded-full " + cls} />;
+                })}
+              </span>
+              <span className={"text-[9px] tracking-widest " + (isToday ? "text-stone-400" : "text-pink-400")}>
+                {isToday ? "TODAY" : missedDay ? `${missedDay} MISSED` : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="px-5 pt-2 pb-6 flex items-center gap-4 text-[9px] tracking-widest text-stone-500">
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-stone-300" /> TAKEN</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-stone-500" /> MISSED</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-stone-700" /> UPCOMING</span>
+      </div>
+
+      {/* ingredient levels */}
+      <DLine />
+      <div className="px-5 pt-6 pb-3">
+        <p className="text-[10px] font-bold tracking-widest text-stone-50">INGREDIENT LEVELS</p>
+        <p className="text-[9px] tracking-widest text-stone-500 mt-0.5">AVG DAILY INTAKE VS UPPER LIMIT · {weekLabel}</p>
+      </div>
+      <div className="px-5 pt-2 pb-8 space-y-4">
+        {levels.length === 0 && (
+          <p className="text-[11px] text-stone-500">No logged intake this week yet.</p>
+        )}
+        {levels.map((l) => {
+          const over = l.pct > 100, at = l.pct === 100, near = !over && !at && l.pct >= 80;
+          return (
+            <div key={l.key}>
+              <div className="flex justify-between items-baseline text-[11px]">
+                <span className="text-stone-300">
+                  {l.name}
+                  <span className="ml-2 text-stone-400">
+                    {l.pct}%{over ? " · OVER LIMIT" : at ? " · AT LIMIT" : near ? " · NEAR LIMIT" : ""}
+                  </span>
+                </span>
+                <span>
+                  <b className={over ? "text-red-400" : "text-stone-50"}>{l.avg}</b>
+                  <span className="text-stone-400"> / {l.cap} {l.unit}</span>
+                </span>
+              </div>
+              <div className="relative flex h-1 mt-1.5 bg-stone-700">
+                <span className={over ? "bg-red-400" : "bg-pink-400"} style={{ width: Math.min(l.pct, 100) + "%" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* yearly — unlocks as data accumulates */}
+      {year && (
+        <div className="absolute inset-0 z-20 bg-stone-800 text-stone-50 overflow-y-auto">
+          <div className="border-b border-stone-500">
+            <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold">Yearly intake</p>
+                <p className="text-[10px] tracking-widest text-stone-400">TRACKING SINCE {mLabel(start)}</p>
+              </div>
+              <button onClick={() => setYear(false)} className="text-lg leading-none px-1" aria-label="Close">✕</button>
+            </div>
+          </div>
+          <div className="px-6 py-16 text-center">
+            <p className="font-sans font-semibold text-5xl leading-none tracking-tight">{logDates.length}</p>
+            <p className="text-[10px] tracking-widest text-stone-400 mt-2">DAYS LOGGED</p>
+            <p className="text-xs text-stone-400 leading-relaxed mt-6 max-w-[15rem] mx-auto">
+              Your yearly intake mix and monthly chart unlock once a few weeks of data are in. Keep logging on Today.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI Camera ─────────────────────────────────
+// four capture targets — one flow: aim → read (OCR / pill-ID) → confirm → apply
+// (prototype: canned reads. real app: MFDS pill-ID DB, product-code DB, LLM OCR)
+// one camera, no mode gate — AI classifies the shot; user corrects if wrong
+const CAM_TYPES = [
+  { id: "rx", label: "PRESCRIPTION" },
+  { id: "label", label: "SUPPLEMENT LABEL" },
+  { id: "pill", label: "LOOSE PILL" },
+  { id: "barcode", label: "BARCODE" },
+];
+const TYPE_LABEL = { rx: "Prescription", label: "Supplement label", pill: "Loose pill", barcode: "Barcode" };
+
+// low: true = AI is unsure → must be tapped to confirm before anything applies
+const CAM_RESULT = {
+  rx: {
+    source: "READ FROM PRESCRIPTION",
+    title: "3 medications detected",
+    fields: [
+      { id: "r1", label: "MED 1", value: "Amoxicillin 250mg · 1 cap · 3×/day" },
+      { id: "r2", label: "MED 2", value: "Loxoprofen 60mg · 1 tab · 3×/day", low: true },
+      { id: "r3", label: "MED 3", value: "Rebamipide 100mg · 1 tab · 3×/day" },
+    ],
+    note: { k: "SCHEDULE", v: "Dosing times were read too — 3 daily reminders will be created." },
+    consult: true,
+    cta: "ADD 3 ITEMS + SCHEDULE",
+    done: "3 medications and their schedule were added to your Cabinet.",
+  },
+  label: {
+    source: "READ FROM SUPPLEMENT LABEL",
+    title: "Vitamin B Complex",
+    fields: [
+      { id: "l1", label: "VITAMIN B6", value: "2mg" },
+      { id: "l2", label: "VITAMIN B12", value: "10µg", low: true },
+      { id: "l3", label: "FOLATE", value: "400µg" },
+      { id: "l4", label: "TYPE", value: "Supplement" },
+    ],
+    note: { k: "OVERLAP CHECK", v: "No overlap with the 5 items already in your Cabinet." },
+    cta: "ADD 1 ITEM",
+    done: "Vitamin B Complex was added to your Cabinet.",
+  },
+  pill: {
+    source: "MATCHED IN THE MFDS PILL DATABASE",
+    title: "Best match · 92%",
+    fields: [
+      { id: "p1", label: "SHAPE", value: "Round" },
+      { id: "p2", label: "COLOR", value: "White" },
+      { id: "p3", label: "IMPRINT", value: "TYLENOL 500", low: true },
+      { id: "p4", label: "MATCH", value: "Acetaminophen 500mg" },
+    ],
+    note: { k: "ALREADY IN YOUR CABINET", v: "This looks like your Acetaminophen — link to it instead of adding a duplicate?" },
+    cta: "CONFIRM MATCH",
+    done: "Matched to Acetaminophen in your Cabinet.",
+  },
+  barcode: {
+    source: "READ FROM BARCODE 8806469…",
+    title: "Centrum Men",
+    fields: [
+      { id: "b1", label: "PRODUCT", value: "Centrum Men Multivitamin" },
+      { id: "b2", label: "SERVING", value: "1 tablet / day" },
+      { id: "b3", label: "INGREDIENTS", value: "23 nutrients (A, C, D3, Zinc …)" },
+    ],
+    note: { k: "HIGH CONFIDENCE", v: "Exact match from the product code — nothing needs confirming." },
+    cta: "ADD 1 ITEM",
+    done: "Centrum Men was added to your Cabinet.",
+  },
+};
+
+function CameraScreen({ goBack, goCabinet }) {
+  const [phase, setPhase] = useState("capture"); // capture | scanning | result | done
+  const [detected, setDetected] = useState("rx"); // AI's guess — correctable
+  const [showTypes, setShowTypes] = useState(false);
+  const [confirmed, setConfirmed] = useState({});
+  const timer = useRef(null);
+
+  const R = CAM_RESULT[detected];
+  const remaining =
+    phase === "result"
+      ? R.fields.filter((f) => f.low && !confirmed[f.id]).length
+      : 0;
+
+  const pickType = (id) => {
+    setDetected(id);
+    setConfirmed({});
+    setShowTypes(false);
+  };
+  const shoot = () => {
+    setPhase("scanning");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setConfirmed({});
+      setShowTypes(false);
+      setPhase("result");
+    }, 1400);
+  };
+  const retake = () => {
+    if (timer.current) clearTimeout(timer.current);
+    setConfirmed({});
+    setShowTypes(false);
+    setPhase("capture");
+  };
+
+  return (
+    <div className="flex-1 relative overflow-hidden bg-stone-900">
+      <style>{`@keyframes pilloScan{0%{top:0}100%{top:100%}}`}</style>
+
+      {/* masthead — X closes the camera */}
+      <div className="border-b border-stone-700">
+        <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+          <span className="text-[10px] tracking-widest text-stone-400">AI CAMERA</span>
+          <button onClick={goBack} aria-label="Close" className="-mr-1 p-1 text-stone-50">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* single auto-detect viewfinder — square, AI figures out the target */}
+      <div className="px-6 pt-10">
+        <div className="relative aspect-square bg-stone-800 overflow-hidden">
+          {[
+            "top-6 left-6 border-t-2 border-l-2",
+            "top-6 right-6 border-t-2 border-r-2",
+            "bottom-6 left-6 border-b-2 border-l-2",
+            "bottom-6 right-6 border-b-2 border-r-2",
+          ].map((c, i) => (
+            <span key={i} className={"absolute w-9 h-9 border-stone-50 opacity-80 " + c} />
+          ))}
+
+          {/* scanning sweep */}
+          {phase === "scanning" && (
+            <>
+              <span
+                className="absolute left-0 right-0 top-0 h-0.5 bg-stone-50 opacity-90"
+                style={{ animation: "pilloScan 1.2s ease-in-out infinite" }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[10px] font-bold tracking-widest text-stone-50">
+                  READING…
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+        <p className="text-center text-[11px] text-stone-400 mt-5 px-2">
+          Point at a prescription, label, pill, or barcode — PILLO reads it and
+          tells you what it found.
+        </p>
+      </div>
+
+      {/* capture controls */}
+      <div className="absolute bottom-0 left-0 right-0 pb-8 pt-4 bg-stone-900">
+        <div className="flex items-center justify-center relative">
+          <button
+            onClick={shoot}
+            disabled={phase === "scanning"}
+            aria-label="Capture"
+            className="w-16 h-16 rounded-full bg-stone-50 flex items-center justify-center shadow-lg disabled:opacity-40"
+          >
+            <span className="w-12 h-12 rounded-full border-2 border-stone-900" />
+          </button>
+          <button aria-label="Choose from gallery" className="absolute right-8 text-stone-300">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <rect x="3" y="3" width="18" height="18" />
+              <circle cx="8.5" cy="8.5" r="1.6" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-center text-[9px] tracking-wide text-stone-500 mt-4 px-10">
+          AI READS IT — NOTHING IS SAVED UNTIL YOU CONFIRM
+        </p>
+      </div>
+
+      {/* review sheet — calibrated trust: flagged fields must be confirmed */}
+      {phase === "result" && (
+        <div className="absolute inset-0 z-20 bg-stone-100 text-stone-900 overflow-y-auto pb-6">
+          <div className="border-b-2 border-stone-900">
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold">Review scan</p>
+                <p className="text-[10px] tracking-widest text-stone-400">{R.source}</p>
+              </div>
+              <button onClick={retake} aria-label="Close" className="text-lg leading-none px-1">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* detection strip — "what is this" is itself a correctable AI guess */}
+          <div className="px-5 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-bold tracking-widest text-stone-400">AI DETECTED</p>
+                <p className="text-sm font-bold mt-0.5">{TYPE_LABEL[detected]}</p>
+              </div>
+              <button
+                onClick={() => setShowTypes((v) => !v)}
+                className="text-[10px] font-bold tracking-widest text-stone-500 underline underline-offset-2"
+              >
+                {showTypes ? "CLOSE" : "NOT THIS?"}
+              </button>
+            </div>
+            {showTypes && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {CAM_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => pickType(t.id)}
+                    className={
+                      "text-[9px] font-bold tracking-widest px-2 py-1 border " +
+                      (detected === t.id
+                        ? "bg-stone-900 text-stone-50 border-stone-900"
+                        : "border-stone-300 text-stone-500")
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="px-5 pt-4 pb-3">
+            <p className="font-sans font-semibold text-2xl tracking-tight">{R.title}</p>
+            <p className="text-[10px] tracking-widest text-stone-400 mt-1">
+              TAP ANY FLAGGED FIELD TO CONFIRM · NOTHING SAVED YET
+            </p>
+          </div>
+
+          <div className="border-t border-stone-200">
+            {R.fields.map((f) => {
+              const flagged = f.low && !confirmed[f.id];
+              return (
+                <button
+                  key={f.id}
+                  disabled={!f.low || confirmed[f.id]}
+                  onClick={() => setConfirmed((c) => ({ ...c, [f.id]: true }))}
+                  className={
+                    "w-full text-left px-5 py-3 flex items-center justify-between border-b border-stone-200 " +
+                    (flagged ? "bg-pink-50" : "bg-white")
+                  }
+                >
+                  <span className="pr-3">
+                    <span className="block text-[9px] font-bold tracking-widest text-stone-400">
+                      {f.label}
+                    </span>
+                    <span className="block text-sm font-semibold text-stone-900 mt-0.5">
+                      {f.value}
+                    </span>
+                  </span>
+                  {f.low ? (
+                    confirmed[f.id] ? (
+                      <span className="text-[9px] font-bold tracking-widest text-lime-600 shrink-0">
+                        ✓ CONFIRMED
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold tracking-widest text-pink-600 border border-pink-400 px-2 py-1 shrink-0">
+                        TAP TO CONFIRM
+                      </span>
+                    )
+                  ) : (
+                    <span className="w-1.5 h-1.5 rounded-full bg-stone-300 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mx-5 mt-4 bg-stone-900 text-stone-50 px-4 py-3">
+            <p className="text-[10px] font-bold tracking-widest text-stone-300">{R.note.k}</p>
+            <p className="text-xs leading-relaxed mt-1.5">{R.note.v}</p>
+            {R.consult && (
+              <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
+                PLEASE VERIFY DOSING AGAINST THE PHARMACY LABEL
+              </p>
+            )}
+          </div>
+
+          <div className="px-5 pt-5 flex gap-2">
+            <button
+              onClick={retake}
+              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-widest"
+            >
+              RETAKE
+            </button>
+            <button
+              onClick={() => remaining === 0 && setPhase("done")}
+              disabled={remaining > 0}
+              className={
+                "flex-[2] py-3 text-[11px] font-bold tracking-widest " +
+                (remaining > 0 ? "bg-stone-200 text-stone-400" : "bg-stone-900 text-stone-50")
+              }
+            >
+              {remaining > 0
+                ? `CONFIRM ${remaining} FIELD${remaining > 1 ? "S" : ""}`
+                : R.cta}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* done */}
+      {phase === "done" && (
+        <div className="absolute inset-0 z-20 bg-stone-100 text-stone-900 flex flex-col items-center justify-center text-center px-8 pb-20">
+          <span className="w-16 h-16 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12.5L10 17L19 7" stroke="currentColor" strokeWidth="2.5" />
+            </svg>
+          </span>
+          <p className="text-lg font-bold mt-5">Done</p>
+          <p className="text-sm text-stone-600 mt-1.5 max-w-xs">{R.done}</p>
+          <div className="flex gap-2 mt-7 w-full max-w-xs">
+            <button
+              onClick={retake}
+              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-widest"
+            >
+              SCAN AGAIN
+            </button>
+            <button
+              onClick={goCabinet}
+              className="flex-1 bg-stone-900 text-stone-50 py-3 text-[11px] font-bold tracking-widest"
+            >
+              VIEW CABINET
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Agent ─────────────────────────────────────
+// canned ingredient assistant — facts stated plainly, judgment handed to a pharmacist
+const AGENT_QA = {
+  q_limit: {
+    q: "Is 3400 IU dangerous?",
+    a: "No — 4000 IU is the tolerable upper limit for daily vitamin D, and you're at 3400 (85%). The limit is a long-term daily ceiling, not a point of harm. Staying under it is the goal.",
+    next: ["q_which", "q_drop", "q_sun"],
+  },
+  q_which: {
+    q: "Which items have vitamin D?",
+    a: "Two: your standalone Vitamin D (1000 IU) and Omega-3 + D3 (2400 IU). The Omega-3 alone already covers most of a day's vitamin D.",
+    next: ["q_drop", "q_limit"],
+  },
+  q_drop: {
+    q: "Should I stop one?",
+    a: "Your Omega-3 + D3 provides 2400 IU on its own, so the standalone Vitamin D may be more than you need. Whether to change anything depends on why each was recommended to you.",
+    consult: true,
+    next: ["q_which", "q_sun"],
+  },
+  q_sun: {
+    q: "Does sunlight count too?",
+    a: "Your body also makes vitamin D from sunlight, which PILLO can't see. On sunny days your real total can run higher than the supplement number shown here.",
+    next: ["q_drop"],
+  },
+};
+
+function AgentScreen() {
+  // opens already holding the standing concern — the AGENT buttons carry this context
+  const [msgs, setMsgs] = useState([]); // empty until the first question
+  const [chips, setChips] = useState(["q_limit", "q_which", "q_drop"]);
+  const [asked, setAsked] = useState({});
+  const [input, setInput] = useState("");
+  const timer = useRef(null);
+
+  // push the question, show a typing bubble, then swap in the answer (chat feel)
+  const reply = (userText, a, consult, next, id) => {
+    setMsgs((m) => [...m, { from: "user", a: userText }, { from: "agent", typing: true }]);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setMsgs((m) => [...m.filter((x) => !x.typing), { from: "agent", a, consult }]);
+      if (id) {
+        setAsked((s) => {
+          const ns = { ...s, [id]: true };
+          setChips(next.filter((x) => !ns[x]));
+          return ns;
+        });
+      }
+    }, 650);
+  };
+
+  const ask = (id) => {
+    const node = AGENT_QA[id];
+    if (node) reply(node.q, node.a, node.consult, node.next, id);
+  };
+
+  const send = () => {
+    const t = input.trim();
+    if (!t) return;
+    setInput("");
+    reply(
+      t,
+      "I can help with the ingredients you track. Tap a suggestion below — and for anything about changing your regimen, your pharmacist is the right call.",
+      true,
+      [],
+      null
+    );
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden pb-20 bg-stone-100">
+      {/* masthead */}
+      <div className="border-b-2 border-stone-900 shrink-0">
+        <div className="px-5 pt-6 pb-3 flex items-center justify-between">
+          <Logo />
+          <span className="text-[10px] tracking-wider text-stone-500">AGENT</span>
+        </div>
+      </div>
+
+      {/* messages */}
+      <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+        <style>{`@keyframes pilloDot{0%,60%,100%{opacity:.25}30%{opacity:1}}`}</style>
+        {msgs.length === 0 && (
+          <div className="min-h-full flex flex-col items-center justify-center text-center px-4">
+            <span
+              className="w-14 h-14 rounded-2xl mb-4 inline-flex items-center justify-center"
+              style={{
+                border: "1.5px solid transparent",
+                background:
+                  "linear-gradient(#f5f5f4,#f5f5f4) padding-box, linear-gradient(135deg,#f472b6,#38bdf8,#84cc16,#a78bfa,#f97316) border-box",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="#1c1917" />
+              </svg>
+            </span>
+            <p className="text-sm font-bold text-stone-900">Ask about your ingredients</p>
+            <p className="text-xs text-stone-500 mt-1.5 max-w-[15rem]">
+              Facts from what you take — judgment calls go to your pharmacist. Tap a
+              question below to start.
+            </p>
+          </div>
+        )}
+        {msgs.map((m, i) =>
+          m.from === "agent" ? (
+            <div key={i} className="flex flex-col items-start pr-10">
+              {/* sender label sits above — only the answer goes in the bubble */}
+              <p className="flex items-center gap-1.5 text-[9px] font-bold tracking-widest text-stone-500 mb-1.5 ml-1">
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+                  <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
+                </svg>
+                PILLO AGENT
+              </p>
+              {/* gradient border = the AI voice, drawn from the ingredient spectrum */}
+              <div
+                className="rounded-2xl px-4 py-3 text-stone-900"
+                style={{
+                  border: "1.5px solid transparent",
+                  background:
+                    "linear-gradient(#f5f5f4,#f5f5f4) padding-box, linear-gradient(135deg,#f472b6,#38bdf8,#84cc16,#a78bfa,#f97316) border-box",
+                }}
+              >
+                {m.typing ? (
+                  <span className="flex items-center gap-1 py-0.5">
+                    {[0, 1, 2].map((d) => (
+                      <span
+                        key={d}
+                        className="w-1.5 h-1.5 rounded-full bg-stone-400"
+                        style={{ animation: `pilloDot 1.2s ${d * 0.2}s infinite` }}
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <>
+                    <p className="text-xs leading-relaxed">{m.a}</p>
+                    {m.consult && (
+                      <p className="text-[10px] text-stone-500 mt-1.5 tracking-wide">
+                        PLEASE CONSULT WITH YOUR PHARMACIST OR DOCTOR
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div key={i} className="flex justify-end">
+              <p className="max-w-[88%] text-right text-xs leading-relaxed font-medium text-stone-900">
+                {m.a}
+              </p>
+            </div>
+          )
+        )}
+      </div>
+
+      {/* composer — suggested questions + free input */}
+      <div className="shrink-0 border-t border-stone-300 bg-stone-100">
+        {chips.length > 0 && (
+          <div className="px-5 pt-3 flex flex-wrap gap-1.5">
+            {chips.map((id) => (
+              <button
+                key={id}
+                onClick={() => ask(id)}
+                className="text-[11px] text-stone-700 border border-stone-400 px-2.5 py-1"
+              >
+                {AGENT_QA[id].q}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="px-5 py-3 flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder="Ask about an ingredient…"
+            className="flex-1 border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-stone-900 placeholder-stone-300"
+          />
+          <button
+            onClick={send}
+            aria-label="Send"
+            className="bg-stone-900 text-stone-50 px-4 py-2 text-[11px] font-bold tracking-widest"
+          >
+            SEND
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── nav ───────────────────────────────────────
+function BottomNav({ tab, setTab }) {
+  const dark = tab === "insights"; // nav inverts with the dark screen
+  const Item = ({ id, label }) => (
+    <button
+      onClick={() => setTab(id)}
+      className={
+        "flex-1 h-full text-[10px] tracking-widest border-t-2 " +
+        (tab === id
+          ? dark
+            ? "text-stone-50 font-bold border-stone-50"
+            : "text-stone-900 font-bold border-stone-900"
+          : dark
+          ? "text-stone-500 border-transparent"
+          : "text-stone-400 border-transparent")
+      }
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div
+      className={
+        "absolute bottom-0 left-0 right-0 h-16 border-t flex items-stretch " +
+        (dark ? "bg-stone-900 border-stone-700" : "bg-stone-100 border-stone-300")
+      }
+    >
+      <Item id="today" label="TODAY" />
+      <Item id="cabinet" label="CABINET" />
+      {/* raised center FAB — the AI Camera entry */}
+      <div className="flex-1 relative">
+        <button
+          onClick={() => setTab("camera")}
+          className={
+            "absolute left-1/2 -translate-x-1/2 -top-4 w-14 h-14 rounded-full shadow-lg flex items-center justify-center " +
+            (dark ? "bg-stone-50 text-stone-900" : "bg-stone-900 text-stone-50")
+          }
+          aria-label="AI Camera"
+        >
+          <span
+            className={
+              "w-5 h-5 rounded-full border-2 " +
+              (dark ? "border-stone-900" : "border-stone-50")
+            }
+          />
+        </button>
+      </div>
+      <Item id="insights" label="INSIGHTS" />
+      <Item id="agent" label="AGENT" />
+    </div>
+  );
+}
+
+function PilloApp() {
+  const [tab, setTab] = useState("today");
+
+  return (
+    <div className="min-h-[100dvh] bg-stone-300 font-sans sm:flex sm:items-center sm:justify-center sm:py-6">
+      <div className="w-full sm:max-w-sm h-[100dvh] sm:h-[812px] sm:max-h-[calc(100vh-48px)] bg-stone-100 overflow-hidden flex flex-col relative sm:shadow-2xl">
+        {tab === "today" && (
+          <TodayScreen goAgent={() => setTab("agent")} goInsights={() => setTab("insights")} />
+        )}
+        {tab === "cabinet" && (
+          <CabinetScreen goAgent={() => setTab("agent")} goCamera={() => setTab("camera")} />
+        )}
+        {tab === "camera" && (
+          <CameraScreen goBack={() => setTab("today")} goCabinet={() => setTab("cabinet")} />
+        )}
+        {tab === "insights" && <InsightsScreen goAgent={() => setTab("agent")} />}
+        {tab === "agent" && <AgentScreen />}
+        {/* camera is a focused full-screen task — hide the tab bar there */}
+        {tab !== "camera" && <BottomNav tab={tab} setTab={setTab} />}
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<PilloApp />);
+</script>
+</body>
+</html>
