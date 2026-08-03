@@ -115,7 +115,7 @@ const Line = () => <div className="border-t border-stone-400" />;
 const Logo = ({ dark }) => (
   <span
     className={
-      "flex items-center text-[12px] font-black tracking-widest " +
+      "flex items-center text-[12px] font-black tracking-wider " +
       (dark ? "text-stone-50" : "text-stone-900")
     }
   >
@@ -249,7 +249,7 @@ const pillFor = (c) =>
 // form field
 const Field = ({ label, value, onChange, placeholder }) => (
   <div>
-    <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">{label}</p>
+    <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">{label}</p>
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -400,7 +400,7 @@ function TodayScreen({ goAgent, goInsights }) {
       <div className="mx-5 mt-4 mb-6 bg-stone-900 text-stone-50 px-4 py-3">
         <button
           onClick={goAgent}
-          className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-stone-300"
+          className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-stone-300"
         >
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
@@ -439,7 +439,7 @@ function TodayScreen({ goAgent, goInsights }) {
                 {hm}
                 <span className="text-sm ml-1">{ap}</span>
               </p>
-              <p className="text-[10px] tracking-widest text-stone-500">
+              <p className="text-[10px] tracking-wider text-stone-500">
                 {slotLabel(slot.time)} · {slotDone ? "DONE" : `${slot.items.length} TO TAKE`}
               </p>
             </div>
@@ -464,7 +464,7 @@ function TodayScreen({ goAgent, goInsights }) {
                         <span className={"block text-sm font-bold " + (isTaken ? "text-stone-400" : "text-stone-900")}>
                           {c.brand}
                         </span>
-                        <span className="block text-[10px] tracking-widest text-stone-400">
+                        <span className="block text-[10px] tracking-wider text-stone-400">
                           {c.dose} · {c.tag}
                         </span>
                       </span>
@@ -495,7 +495,7 @@ function TodayScreen({ goAgent, goInsights }) {
         <>
           <Line />
           <div className="px-5 pt-5 pb-4">
-            <p className="text-[10px] font-bold tracking-widest text-stone-900 mb-3">AS NEEDED</p>
+            <p className="text-[10px] font-bold tracking-wider text-stone-900 mb-3">AS NEEDED</p>
             <div className="space-y-px bg-stone-300 border border-stone-300">
               {prnItems.map((c) => {
                 const isTaken = !!taken[c.id];
@@ -515,13 +515,13 @@ function TodayScreen({ goAgent, goInsights }) {
                       <span className={"block text-sm font-bold " + (isTaken ? "text-stone-400" : "text-stone-900")}>
                         {c.brand}
                       </span>
-                      <span className="block text-[10px] tracking-widest text-stone-400">
+                      <span className="block text-[10px] tracking-wider text-stone-400">
                         {c.dose} · {c.tag}
                       </span>
                     </span>
                     <span
                       className={
-                        "text-[10px] font-bold tracking-widest px-2.5 py-1 border shrink-0 " +
+                        "text-[10px] font-bold tracking-wider px-2.5 py-1 border shrink-0 " +
                         (isTaken ? "bg-stone-900 border-stone-900 text-stone-50" : "border-stone-400 text-stone-500")
                       }
                     >
@@ -541,7 +541,7 @@ function TodayScreen({ goAgent, goInsights }) {
           <span className="text-xs truncate">{toast.msg}</span>
           <button
             onClick={undo}
-            className="text-[10px] font-bold tracking-widest underline underline-offset-2 shrink-0"
+            className="text-[10px] font-bold tracking-wider underline underline-offset-2 shrink-0"
           >
             UNDO
           </button>
@@ -756,7 +756,7 @@ function CabinetScreen({ goAgent, goCamera }) {
           <p className="text-sm font-bold text-stone-900">Cabinet</p>
           <p className="text-xs text-stone-500">everything you take, in one place</p>
         </div>
-        <p className="text-[11px] font-bold tracking-widest text-stone-700 pb-0.5">
+        <p className="text-[11px] font-bold tracking-wider text-stone-700 pb-0.5">
           {items.length} ITEMS
         </p>
       </div>
@@ -765,10 +765,10 @@ function CabinetScreen({ goAgent, goCamera }) {
       {!hasOverlap && (
         <div className="mx-5 mb-6 border-2 border-stone-900 bg-white px-4 py-3">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold tracking-widest text-stone-900">
+            <p className="text-[10px] font-bold tracking-wider text-stone-900">
               INGREDIENT CHECK
             </p>
-            <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-lime-600">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-lime-600">
               <span className="w-1.5 h-1.5 rounded-full bg-lime-500" />
               CLEAR
             </span>
@@ -787,10 +787,10 @@ function CabinetScreen({ goAgent, goCamera }) {
       {hasOverlap && (
       <div className="mx-5 mb-6 border-2 border-stone-900 bg-white px-4 py-3">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold tracking-widest text-stone-900">
+          <p className="text-[10px] font-bold tracking-wider text-stone-900">
             INGREDIENT OVERLAP
           </p>
-          <span className="text-[10px] tracking-widest text-stone-400">
+          <span className="text-[10px] tracking-wider text-stone-400">
             {overlaps.length} FROM 2+ ITEMS
           </span>
         </div>
@@ -827,7 +827,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                     style={{ width: Math.min(g.pct, 100) + "%" }}
                   />
                 </div>
-                <p className="text-[9px] tracking-widest text-stone-400 mt-1">
+                <p className="text-[9px] tracking-wider text-stone-400 mt-1">
                   {over ? "OVER LIMIT" : g.pct === 100 ? "AT LIMIT" : near ? "NEAR LIMIT" : "WITHIN LIMIT"}
                 </p>
               </div>
@@ -838,7 +838,7 @@ function CabinetScreen({ goAgent, goCamera }) {
         <div className="mt-3 pt-2.5 border-t border-stone-300">
           <button
             onClick={goAgent}
-            className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-stone-500"
+            className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-stone-500"
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
               <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
@@ -858,7 +858,7 @@ function CabinetScreen({ goAgent, goCamera }) {
       {/* specimen grid — tap a card for details */}
       <Line />
       <div className="px-5 pt-4">
-        <p className="text-[10px] font-bold tracking-widest text-stone-500 mb-3">
+        <p className="text-[10px] font-bold tracking-wider text-stone-500 mb-3">
           ALL ITEMS
         </p>
         <div className="grid grid-cols-2 gap-px bg-stone-300 border border-stone-300">
@@ -874,7 +874,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                   aria-label="shared ingredient"
                 />
               )}
-              <span className="text-[8px] tracking-widest text-stone-400 pt-3">
+              <span className="text-[8px] tracking-wider text-stone-400 pt-3">
                 {c.dose}
               </span>
               <span className="h-20 flex items-center justify-center">
@@ -884,7 +884,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 <span className="block text-[11px] font-bold leading-tight">
                   {c.brand}
                 </span>
-                <span className="block text-[8px] tracking-widest text-stone-400 mt-0.5">
+                <span className="block text-[8px] tracking-wider text-stone-400 mt-0.5">
                   {c.tag}
                 </span>
               </span>
@@ -896,8 +896,8 @@ function CabinetScreen({ goAgent, goCamera }) {
             className="bg-stone-50 text-stone-500 flex flex-col items-center justify-center py-6"
           >
             <span className="text-2xl leading-none">+</span>
-            <span className="text-[9px] font-bold tracking-widest mt-1.5">ADD ITEM</span>
-            <span className="text-[8px] tracking-widest text-stone-400 mt-0.5">
+            <span className="text-[9px] font-bold tracking-wider mt-1.5">ADD ITEM</span>
+            <span className="text-[8px] tracking-wider text-stone-400 mt-0.5">
               MANUAL OR AI CAMERA
             </span>
           </button>
@@ -918,7 +918,7 @@ function CabinetScreen({ goAgent, goCamera }) {
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b-2 border-stone-900">
               <div>
                 <p className="text-sm font-bold">{item.brand}</p>
-                <p className="text-[10px] tracking-widest text-stone-400">
+                <p className="text-[10px] tracking-wider text-stone-400">
                   {item.dose} · {item.tag}
                 </p>
               </div>
@@ -936,20 +936,20 @@ function CabinetScreen({ goAgent, goCamera }) {
             </div>
 
             <div className="px-5 py-4">
-              <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+              <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">
                 PURPOSE
               </p>
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold flex-1 pr-3">{item.purpose}</p>
                 <button
                   onClick={() => openEdit(item)}
-                  className="text-[10px] font-bold tracking-widest text-stone-400 underline underline-offset-2 shrink-0"
+                  className="text-[10px] font-bold tracking-wider text-stone-400 underline underline-offset-2 shrink-0"
                 >
                   EDIT →
                 </button>
               </div>
 
-              <p className="text-[10px] font-bold tracking-widest text-stone-400 mt-4 mb-2">
+              <p className="text-[10px] font-bold tracking-wider text-stone-400 mt-4 mb-2">
                 INGREDIENTS
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -968,7 +968,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 ))}
               </div>
 
-              <p className="text-[10px] font-bold tracking-widest text-stone-400 mt-4 mb-1">
+              <p className="text-[10px] font-bold tracking-wider text-stone-400 mt-4 mb-1">
                 SCHEDULE
               </p>
               {item.schedule ? (
@@ -976,7 +976,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                   <p className="text-sm font-semibold">{item.schedule}</p>
                   <button
                     onClick={() => openEdit(item)}
-                    className="text-[10px] font-bold tracking-widest text-stone-400 underline underline-offset-2"
+                    className="text-[10px] font-bold tracking-wider text-stone-400 underline underline-offset-2"
                   >
                     EDIT →
                   </button>
@@ -984,7 +984,7 @@ function CabinetScreen({ goAgent, goCamera }) {
               ) : (
                 <button
                   onClick={() => openEdit(item)}
-                  className="w-full mt-1 border-2 border-stone-900 text-stone-900 py-2 text-[10px] font-bold tracking-widest"
+                  className="w-full mt-1 border-2 border-stone-900 text-stone-900 py-2 text-[10px] font-bold tracking-wider"
                 >
                   + ADD TO SCHEDULE
                 </button>
@@ -995,7 +995,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 if (!shared.length) return null;
                 return (
                   <div className="mt-4 bg-stone-900 text-stone-50 px-4 py-3">
-                    <p className="text-[10px] font-bold tracking-widest text-stone-300">
+                    <p className="text-[10px] font-bold tracking-wider text-stone-300">
                       ✦ SHARED INGREDIENT{shared.length > 1 ? "S" : ""}
                     </p>
                     <p className="text-xs leading-relaxed mt-1.5">
@@ -1013,7 +1013,7 @@ function CabinetScreen({ goAgent, goCamera }) {
               <div className="mt-6 text-center">
                 <button
                   onClick={() => deleteItem(item.id)}
-                  className="text-[10px] tracking-widest text-red-600 underline underline-offset-2"
+                  className="text-[10px] tracking-wider text-red-600 underline underline-offset-2"
                 >
                   DELETE ITEM
                 </button>
@@ -1050,7 +1050,7 @@ function CabinetScreen({ goAgent, goCamera }) {
             {form.mode === "add" && (
               <button
                 onClick={goCamera}
-                className="w-full text-left px-5 py-3 border-b border-stone-200 text-[10px] font-bold tracking-widest text-stone-500"
+                className="w-full text-left px-5 py-3 border-b border-stone-200 text-[10px] font-bold tracking-wider text-stone-500"
               >
                 ◉ SCAN INSTEAD — AI CAMERA →
               </button>
@@ -1065,7 +1065,7 @@ function CabinetScreen({ goAgent, goCamera }) {
               />
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                  <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">
                     AMOUNT PER INTAKE
                   </p>
                   <div className="flex items-center border border-stone-300">
@@ -1085,7 +1085,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">UNIT</p>
+                  <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">UNIT</p>
                   <div className="flex border border-stone-300">
                     {[
                       { u: "TABLET", icon: <span className="w-3 h-3 rounded-full bg-current block" /> },
@@ -1109,7 +1109,7 @@ function CabinetScreen({ goAgent, goCamera }) {
               </div>
 
               <div>
-                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">
                   PILL COLOR — FOR THE ICON
                 </p>
                 <div className="flex items-center gap-2">
@@ -1142,14 +1142,14 @@ function CabinetScreen({ goAgent, goCamera }) {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">TYPE</p>
+                <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">TYPE</p>
                 <div className="flex border border-stone-300">
                   {["SUPPLEMENT", "PRESCRIPTION"].map((t) => (
                     <button
                       key={t}
                       onClick={() => setForm({ ...form, tag: t })}
                       className={
-                        "flex-1 py-2 text-[10px] font-bold tracking-widest " +
+                        "flex-1 py-2 text-[10px] font-bold tracking-wider " +
                         (form.tag === t ? "bg-stone-900 text-stone-50" : "text-stone-400")
                       }
                     >
@@ -1165,7 +1165,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 placeholder="e.g. Daily nutrition"
               />
               <div>
-                <p className="text-[10px] font-bold tracking-widest text-stone-400 mb-1">
+                <p className="text-[10px] font-bold tracking-wider text-stone-400 mb-1">
                   SCHEDULE (OPTIONAL)
                 </p>
                 <div className="flex items-center gap-2">
@@ -1202,7 +1202,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                       if (!form.slots.includes(t))
                         setForm({ ...form, slots: [...form.slots, t] });
                     }}
-                    className="ml-auto bg-stone-900 text-stone-50 px-4 py-2 text-[10px] font-bold tracking-widest"
+                    className="ml-auto bg-stone-900 text-stone-50 px-4 py-2 text-[10px] font-bold tracking-wider"
                   >
                     ADD
                   </button>
@@ -1233,7 +1233,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 {/* AI normalization — matched free text → canonical ingredient, confirm by tap */}
                 {normFor(form.ings).length > 0 && (
                   <div className="mt-2">
-                    <p className="text-[9px] font-bold tracking-widest text-stone-400 mb-1">
+                    <p className="text-[9px] font-bold tracking-wider text-stone-400 mb-1">
                       ✦ AI MATCHED — TAP TO STANDARDIZE
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -1259,7 +1259,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 )}
                 {suggestFor(form.brand, form.ings).length > 0 && (
                   <div className="mt-2">
-                    <p className="text-[9px] font-bold tracking-widest text-stone-400 mb-1">
+                    <p className="text-[9px] font-bold tracking-wider text-stone-400 mb-1">
                       ✦ AI SUGGESTED — TAP TO ADD
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -1282,7 +1282,7 @@ function CabinetScreen({ goAgent, goCamera }) {
                 onClick={saveForm}
                 disabled={!form.brand.trim()}
                 className={
-                  "w-full py-3 text-[11px] font-bold tracking-widest " +
+                  "w-full py-3 text-[11px] font-bold tracking-wider " +
                   (form.brand.trim()
                     ? "bg-stone-900 text-stone-50"
                     : "bg-stone-200 text-stone-400")
@@ -1302,7 +1302,7 @@ function CabinetScreen({ goAgent, goCamera }) {
           {toast.undoFn && (
             <button
               onClick={undo}
-              className="text-[10px] font-bold tracking-widest underline underline-offset-2 shrink-0"
+              className="text-[10px] font-bold tracking-wider underline underline-offset-2 shrink-0"
             >
               UNDO
             </button>
@@ -1422,7 +1422,7 @@ function InsightsScreen({ goAgent }) {
         {[[perfect, "PERFECT DAYS"], [missed, "DOSES MISSED"], [streak, "DAY STREAK"]].map(([n, label]) => (
           <div key={label} className="px-5 py-5">
             <p className="font-sans font-semibold text-2xl leading-none text-stone-50">{n}</p>
-            <p className="text-[9px] tracking-widest text-stone-500 mt-1.5">{label}</p>
+            <p className="text-[9px] tracking-wider text-stone-500 mt-1.5">{label}</p>
           </div>
         ))}
       </div>
@@ -1430,11 +1430,11 @@ function InsightsScreen({ goAgent }) {
       {/* weekly intake log */}
       <DLine />
       <div className="px-5 pt-6 pb-2 flex items-center justify-between">
-        <p className="text-[10px] font-bold tracking-widest text-stone-50">INTAKE LOG</p>
+        <p className="text-[10px] font-bold tracking-wider text-stone-50">INTAKE LOG</p>
         <div className="flex items-center gap-2">
           <button onClick={() => setWk(wk - 1)} disabled={wk <= -weeksBack} aria-label="Previous week"
             className={"px-2 py-1 text-xs " + (wk <= -weeksBack ? "text-stone-700" : "text-stone-300")}>←</button>
-          <span className="text-[9px] tracking-widest text-stone-400 w-24 text-center whitespace-nowrap">{weekLabel}</span>
+          <span className="text-[9px] tracking-wider text-stone-400 w-24 text-center whitespace-nowrap">{weekLabel}</span>
           <button onClick={() => setWk(wk + 1)} disabled={wk >= 0} aria-label="Next week"
             className={"px-2 py-1 text-xs " + (wk >= 0 ? "text-stone-700" : "text-stone-300")}>→</button>
         </div>
@@ -1448,7 +1448,7 @@ function InsightsScreen({ goAgent }) {
           return (
             <div key={dk} className="flex items-center px-5 py-3">
               <span className={"w-7 font-sans font-semibold text-sm " + (future ? "text-stone-600" : "text-stone-50")}>{day}</span>
-              <span className="w-10 text-[9px] tracking-widest text-stone-500">{wdShort(dk)}</span>
+              <span className="w-10 text-[9px] tracking-wider text-stone-500">{wdShort(dk)}</span>
               <span className="flex flex-wrap gap-2 flex-1 py-0.5">
                 {scheduled.map((c) => {
                   const taken = logs[dk] && logs[dk][c.id];
@@ -1458,14 +1458,14 @@ function InsightsScreen({ goAgent }) {
                   return <span key={c.id} className={"w-2.5 h-2.5 rounded-full " + cls} />;
                 })}
               </span>
-              <span className={"text-[9px] tracking-widest " + (isToday ? "text-stone-400" : "text-pink-400")}>
+              <span className={"text-[9px] tracking-wider " + (isToday ? "text-stone-400" : "text-pink-400")}>
                 {isToday ? "TODAY" : missedDay ? `${missedDay} MISSED` : ""}
               </span>
             </div>
           );
         })}
       </div>
-      <div className="px-5 pt-2 pb-6 flex items-center gap-4 text-[9px] tracking-widest text-stone-500">
+      <div className="px-5 pt-2 pb-6 flex items-center gap-4 text-[9px] tracking-wider text-stone-500">
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-stone-300" /> TAKEN</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-stone-500" /> MISSED</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-stone-700" /> UPCOMING</span>
@@ -1474,8 +1474,8 @@ function InsightsScreen({ goAgent }) {
       {/* ingredient levels */}
       <DLine />
       <div className="px-5 pt-6 pb-3">
-        <p className="text-[10px] font-bold tracking-widest text-stone-50">INGREDIENT LEVELS</p>
-        <p className="text-[9px] tracking-widest text-stone-500 mt-0.5">AVG DAILY INTAKE VS UPPER LIMIT · {weekLabel}</p>
+        <p className="text-[10px] font-bold tracking-wider text-stone-50">INGREDIENT LEVELS</p>
+        <p className="text-[9px] tracking-wider text-stone-500 mt-0.5">AVG DAILY INTAKE VS UPPER LIMIT · {weekLabel}</p>
       </div>
       <div className="px-5 pt-2 pb-8 space-y-4">
         {levels.length === 0 && (
@@ -1512,14 +1512,14 @@ function InsightsScreen({ goAgent }) {
             <div className="px-5 pt-6 pb-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold">Yearly intake</p>
-                <p className="text-[10px] tracking-widest text-stone-400">TRACKING SINCE {mLabel(start)}</p>
+                <p className="text-[10px] tracking-wider text-stone-400">TRACKING SINCE {mLabel(start)}</p>
               </div>
               <button onClick={() => setYear(false)} className="text-lg leading-none px-1" aria-label="Close">✕</button>
             </div>
           </div>
           <div className="px-6 py-16 text-center">
             <p className="font-sans font-semibold text-5xl leading-none tracking-tight">{logDates.length}</p>
-            <p className="text-[10px] tracking-widest text-stone-400 mt-2">DAYS LOGGED</p>
+            <p className="text-[10px] tracking-wider text-stone-400 mt-2">DAYS LOGGED</p>
             <p className="text-xs text-stone-400 leading-relaxed mt-6 max-w-[15rem] mx-auto">
               Your yearly intake mix and monthly chart unlock once a few weeks of data are in. Keep logging on Today.
             </p>
@@ -1603,6 +1603,29 @@ function CameraScreen({ goBack, goCabinet }) {
   const [showTypes, setShowTypes] = useState(false);
   const [confirmed, setConfirmed] = useState({});
   const timer = useRef(null);
+  const videoRef = useRef(null);
+  const [camErr, setCamErr] = useState(false);
+
+  // live back-camera feed while framing a shot (needs HTTPS + permission)
+  useEffect(() => {
+    if (phase !== "capture") return;
+    let stream;
+    setCamErr(false);
+    const md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia) {
+      setCamErr(true);
+      return;
+    }
+    md.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+      .then((s) => {
+        stream = s;
+        if (videoRef.current) videoRef.current.srcObject = s;
+      })
+      .catch(() => setCamErr(true));
+    return () => {
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+    };
+  }, [phase]);
 
   const R = CAM_RESULT[detected];
   const remaining =
@@ -1638,7 +1661,7 @@ function CameraScreen({ goBack, goCabinet }) {
       {/* masthead — X closes the camera */}
       <div className="border-b border-stone-700">
         <div className="px-5 pt-6 pb-3 flex items-center justify-between">
-          <span className="text-[10px] tracking-widest text-stone-400">AI CAMERA</span>
+          <span className="text-[10px] tracking-wider text-stone-400">AI CAMERA</span>
           <button onClick={goBack} aria-label="Close" className="-mr-1 p-1 text-stone-50">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -1650,6 +1673,20 @@ function CameraScreen({ goBack, goCabinet }) {
       {/* single auto-detect viewfinder — square, AI figures out the target */}
       <div className="px-6 pt-10">
         <div className="relative aspect-square bg-stone-800 overflow-hidden">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {camErr && (
+            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+              <span className="text-[11px] tracking-wide text-stone-300">
+                Camera unavailable — allow camera access for this site
+              </span>
+            </div>
+          )}
           {[
             "top-6 left-6 border-t-2 border-l-2",
             "top-6 right-6 border-t-2 border-r-2",
@@ -1667,7 +1704,7 @@ function CameraScreen({ goBack, goCabinet }) {
                 style={{ animation: "pilloScan 1.2s ease-in-out infinite" }}
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] font-bold tracking-widest text-stone-50">
+                <span className="text-[10px] font-bold tracking-wider text-stone-50">
                   READING…
                 </span>
               </div>
@@ -1711,7 +1748,7 @@ function CameraScreen({ goBack, goCabinet }) {
             <div className="px-5 pt-5 pb-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold">Review scan</p>
-                <p className="text-[10px] tracking-widest text-stone-400">{R.source}</p>
+                <p className="text-[10px] tracking-wider text-stone-400">{R.source}</p>
               </div>
               <button onClick={retake} aria-label="Close" className="text-lg leading-none px-1">
                 ✕
@@ -1723,12 +1760,12 @@ function CameraScreen({ goBack, goCabinet }) {
           <div className="px-5 pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[9px] font-bold tracking-widest text-stone-400">AI DETECTED</p>
+                <p className="text-[9px] font-bold tracking-wider text-stone-400">AI DETECTED</p>
                 <p className="text-sm font-bold mt-0.5">{TYPE_LABEL[detected]}</p>
               </div>
               <button
                 onClick={() => setShowTypes((v) => !v)}
-                className="text-[10px] font-bold tracking-widest text-stone-500 underline underline-offset-2"
+                className="text-[10px] font-bold tracking-wider text-stone-500 underline underline-offset-2"
               >
                 {showTypes ? "CLOSE" : "NOT THIS?"}
               </button>
@@ -1740,7 +1777,7 @@ function CameraScreen({ goBack, goCabinet }) {
                     key={t.id}
                     onClick={() => pickType(t.id)}
                     className={
-                      "text-[9px] font-bold tracking-widest px-2 py-1 border " +
+                      "text-[9px] font-bold tracking-wider px-2 py-1 border " +
                       (detected === t.id
                         ? "bg-stone-900 text-stone-50 border-stone-900"
                         : "border-stone-300 text-stone-500")
@@ -1755,7 +1792,7 @@ function CameraScreen({ goBack, goCabinet }) {
 
           <div className="px-5 pt-4 pb-3">
             <p className="font-sans font-semibold text-2xl tracking-tight">{R.title}</p>
-            <p className="text-[10px] tracking-widest text-stone-400 mt-1">
+            <p className="text-[10px] tracking-wider text-stone-400 mt-1">
               TAP ANY FLAGGED FIELD TO CONFIRM · NOTHING SAVED YET
             </p>
           </div>
@@ -1774,7 +1811,7 @@ function CameraScreen({ goBack, goCabinet }) {
                   }
                 >
                   <span className="pr-3">
-                    <span className="block text-[9px] font-bold tracking-widest text-stone-400">
+                    <span className="block text-[9px] font-bold tracking-wider text-stone-400">
                       {f.label}
                     </span>
                     <span className="block text-sm font-semibold text-stone-900 mt-0.5">
@@ -1783,11 +1820,11 @@ function CameraScreen({ goBack, goCabinet }) {
                   </span>
                   {f.low ? (
                     confirmed[f.id] ? (
-                      <span className="text-[9px] font-bold tracking-widest text-lime-600 shrink-0">
+                      <span className="text-[9px] font-bold tracking-wider text-lime-600 shrink-0">
                         ✓ CONFIRMED
                       </span>
                     ) : (
-                      <span className="text-[9px] font-bold tracking-widest text-pink-600 border border-pink-400 px-2 py-1 shrink-0">
+                      <span className="text-[9px] font-bold tracking-wider text-pink-600 border border-pink-400 px-2 py-1 shrink-0">
                         TAP TO CONFIRM
                       </span>
                     )
@@ -1800,7 +1837,7 @@ function CameraScreen({ goBack, goCabinet }) {
           </div>
 
           <div className="mx-5 mt-4 bg-stone-900 text-stone-50 px-4 py-3">
-            <p className="text-[10px] font-bold tracking-widest text-stone-300">{R.note.k}</p>
+            <p className="text-[10px] font-bold tracking-wider text-stone-300">{R.note.k}</p>
             <p className="text-xs leading-relaxed mt-1.5">{R.note.v}</p>
             {R.consult && (
               <p className="text-[10px] text-stone-400 mt-1.5 tracking-wide">
@@ -1812,7 +1849,7 @@ function CameraScreen({ goBack, goCabinet }) {
           <div className="px-5 pt-5 flex gap-2">
             <button
               onClick={retake}
-              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-widest"
+              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-wider"
             >
               RETAKE
             </button>
@@ -1820,7 +1857,7 @@ function CameraScreen({ goBack, goCabinet }) {
               onClick={() => remaining === 0 && setPhase("done")}
               disabled={remaining > 0}
               className={
-                "flex-[2] py-3 text-[11px] font-bold tracking-widest " +
+                "flex-[2] py-3 text-[11px] font-bold tracking-wider " +
                 (remaining > 0 ? "bg-stone-200 text-stone-400" : "bg-stone-900 text-stone-50")
               }
             >
@@ -1845,13 +1882,13 @@ function CameraScreen({ goBack, goCabinet }) {
           <div className="flex gap-2 mt-7 w-full max-w-xs">
             <button
               onClick={retake}
-              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-widest"
+              className="flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-wider"
             >
               SCAN AGAIN
             </button>
             <button
               onClick={goCabinet}
-              className="flex-1 bg-stone-900 text-stone-50 py-3 text-[11px] font-bold tracking-widest"
+              className="flex-1 bg-stone-900 text-stone-50 py-3 text-[11px] font-bold tracking-wider"
             >
               VIEW CABINET
             </button>
@@ -1968,7 +2005,7 @@ function AgentScreen() {
           m.from === "agent" ? (
             <div key={i} className="flex flex-col items-start pr-10">
               {/* sender label sits above — only the answer goes in the bubble */}
-              <p className="flex items-center gap-1.5 text-[9px] font-bold tracking-widest text-stone-500 mb-1.5 ml-1">
+              <p className="flex items-center gap-1.5 text-[9px] font-bold tracking-wider text-stone-500 mb-1.5 ml-1">
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
                   <path d="M1.5 1.5h9v6.5H5.5L2.5 10.5V8h-1V1.5z" fill="currentColor" />
                 </svg>
@@ -2041,7 +2078,7 @@ function AgentScreen() {
           <button
             onClick={send}
             aria-label="Send"
-            className="bg-stone-900 text-stone-50 px-4 py-2 text-[11px] font-bold tracking-widest"
+            className="bg-stone-900 text-stone-50 px-4 py-2 text-[11px] font-bold tracking-wider"
           >
             SEND
           </button>
@@ -2058,7 +2095,7 @@ function BottomNav({ tab, setTab }) {
     <button
       onClick={() => setTab(id)}
       className={
-        "flex-1 h-full text-[10px] tracking-widest border-t-2 " +
+        "flex-1 h-full text-[10px] tracking-tight font-semibold border-t-2 " +
         (tab === id
           ? dark
             ? "text-stone-50 font-bold border-stone-50"
