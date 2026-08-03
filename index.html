@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icon.svg" />
 <title>PILLO</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -20,9 +20,6 @@
   html, body, #root { height: 100%; margin: 0; }
   body { background: #d6d3d1; -webkit-tap-highlight-color: transparent;
          padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
-  #pillo-reader video { position:absolute; inset:0; width:100% !important; height:100% !important; object-fit:cover; }
-  #pillo-reader img, #pillo-reader { border:0 !important; }
-  #pillo-reader__dashboard, #pillo-reader__scan_region img { display:none !important; }
 </style>
 </head>
 <body>
@@ -1642,42 +1639,69 @@ function CameraScreen({ goBack, goCabinet }) {
     });
   };
 
-  // live camera + continuous barcode scan via html5-qrcode (works on iOS Safari)
+  // own camera feed + barcode decode from frames (BarcodeDetector, ZXing fallback)
   useEffect(() => {
     if (phase !== "capture") return;
     setCamErr(false);
-    const H = window.Html5Qrcode;
-    if (!H) {
+    setScanMsg("");
+    const md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia) {
       setCamErr(true);
-      setScanMsg("scanner engine not loaded");
+      setScanMsg("no camera API");
       return;
     }
-    setScanMsg("starting camera…");
-    const scanner = new H("pillo-reader", { verbose: false });
-    let started = false;
-    let done = false;
-    scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, aspectRatio: 1 },
-        (text) => {
-          if (done) return;
-          done = true;
-          scanner.stop().catch(() => {});
-          handleBarcode(text);
-        },
-        () => {}
-      )
-      .then(() => {
-        started = true;
-        setScanMsg("scanning for barcode…");
+    let stream, interval, cancelled = false, done = false;
+    const detector =
+      "BarcodeDetector" in window
+        ? new window.BarcodeDetector({
+            formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "codabar", "itf", "qr_code"],
+          })
+        : null;
+    const zx =
+      !detector && window.ZXing && window.ZXing.BrowserMultiFormatReader
+        ? new window.ZXing.BrowserMultiFormatReader()
+        : null;
+    const canvas = document.createElement("canvas");
+
+    md.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+      .then((s) => {
+        if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
+        stream = s;
+        const v = videoRef.current;
+        if (v) { v.srcObject = s; v.play && v.play().catch(() => {}); }
+        setScanMsg(detector ? "scanning… (native)" : zx ? "scanning… (zxing)" : "camera on · no barcode engine");
+        if (!detector && !zx) return;
+        interval = setInterval(async () => {
+          const v2 = videoRef.current;
+          if (!v2 || !v2.videoWidth || done) return;
+          try {
+            if (detector) {
+              const codes = await detector.detect(v2);
+              if (codes && codes.length) { done = true; clearInterval(interval); handleBarcode(codes[0].rawValue); }
+            } else {
+              canvas.width = v2.videoWidth;
+              canvas.height = v2.videoHeight;
+              canvas.getContext("2d").drawImage(v2, 0, 0);
+              let res = null;
+              if (typeof zx.decodeFromCanvas === "function") {
+                try { res = zx.decodeFromCanvas(canvas); } catch (e) {}
+              } else {
+                try { res = await zx.decodeFromImageUrl(canvas.toDataURL("image/png")); } catch (e) {}
+              }
+              if (res) { done = true; clearInterval(interval); handleBarcode(res.getText()); }
+            }
+          } catch (e) {}
+        }, 400);
       })
       .catch((e) => {
         setCamErr(true);
-        setScanMsg("start error: " + (e && e.message ? e.message : String(e)));
+        setScanMsg("camera error: " + (e && e.name ? e.name : String(e)));
       });
+
     return () => {
-      if (started) scanner.stop().then(() => scanner.clear()).catch(() => {});
+      cancelled = true;
+      if (interval) clearInterval(interval);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     };
   }, [phase]);
 
@@ -1768,7 +1792,13 @@ function CameraScreen({ goBack, goCabinet }) {
       {/* single auto-detect viewfinder — square, AI figures out the target */}
       <div className="px-6 pt-10">
         <div className="relative aspect-square bg-stone-800 overflow-hidden">
-          <div id="pillo-reader" className="absolute inset-0" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 w-full h-full object-cover"
+          />
           {camErr && (
             <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
               <span className="text-[11px] tracking-wide text-stone-300">
