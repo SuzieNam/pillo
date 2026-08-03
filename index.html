@@ -1607,6 +1607,36 @@ function CameraScreen({ goBack, goCabinet }) {
   const videoRef = useRef(null);
   const [camErr, setCamErr] = useState(false);
   const [scanCode, setScanCode] = useState(null);
+  const [product, setProduct] = useState(null);
+
+  // barcode → product lookup via Open Food Facts (free, no key, CORS-ok)
+  const lookupOFF = async (code) => {
+    try {
+      const r = await fetch(
+        "https://world.openfoodfacts.org/api/v2/product/" +
+          encodeURIComponent(code) +
+          ".json?fields=product_name,brands,ingredients_text,quantity"
+      );
+      const j = await r.json();
+      if (j.status === 1 && j.product) {
+        const p = j.product;
+        return { found: true, name: p.product_name || "", brand: p.brands || "", ing: p.ingredients_text || "" };
+      }
+    } catch (e) {}
+    return { found: false };
+  };
+  const handleBarcode = (code) => {
+    setScanCode(code);
+    setDetected("barcode");
+    setConfirmed({});
+    setShowTypes(false);
+    setProduct(null);
+    setPhase("scanning");
+    lookupOFF(code).then((prod) => {
+      setProduct(prod);
+      setPhase("result");
+    });
+  };
 
   // live back-camera feed + continuous barcode scan while framing (HTTPS + permission)
   useEffect(() => {
@@ -1628,11 +1658,7 @@ function CameraScreen({ goBack, goCabinet }) {
           (result) => {
             if (result && !done) {
               done = true;
-              setScanCode(result.getText());
-              setDetected("barcode");
-              setConfirmed({});
-              setShowTypes(false);
-              setPhase("result");
+              handleBarcode(result.getText());
             }
           }
         )
@@ -1649,22 +1675,45 @@ function CameraScreen({ goBack, goCabinet }) {
     return () => { if (stream) stream.getTracks().forEach((t) => t.stop()); };
   }, [phase]);
 
+  const barcodeResult = (code, prod) => {
+    if (prod && prod.found) {
+      const fields = [
+        { id: "b1", label: "BARCODE", value: code },
+        { id: "b2", label: "PRODUCT", value: prod.name || "(no name)", low: !prod.name },
+      ];
+      if (prod.brand) fields.push({ id: "b3", label: "BRAND", value: prod.brand });
+      if (prod.ing) fields.push({ id: "b4", label: "INGREDIENTS", value: prod.ing, low: true });
+      return {
+        source: `BARCODE ${code} · OPEN FOOD FACTS`,
+        title: prod.name || code,
+        fields,
+        note: {
+          k: "MATCHED IN OPEN FOOD FACTS",
+          v: "Community product database — double-check the details before saving.",
+        },
+        cta: "ADD 1 ITEM",
+        done: `${prod.name || "Item"} added to your Cabinet.`,
+      };
+    }
+    return {
+      source: `BARCODE ${code}`,
+      title: code,
+      fields: [
+        { id: "b1", label: "BARCODE", value: code },
+        { id: "b2", label: "PRODUCT", value: "Not found — enter details manually", low: true },
+      ],
+      note: {
+        k: "NOT IN DATABASE",
+        v: "This barcode isn't in Open Food Facts. Add the item's details manually.",
+      },
+      cta: "ADD 1 ITEM",
+      done: "Added to your Cabinet.",
+    };
+  };
+
   const R =
     detected === "barcode" && scanCode
-      ? {
-          source: `READ FROM BARCODE ${scanCode}`,
-          title: scanCode,
-          fields: [
-            { id: "b1", label: "BARCODE", value: scanCode },
-            { id: "b2", label: "PRODUCT", value: "Not in the database yet", low: true },
-          ],
-          note: {
-            k: "BARCODE READ",
-            v: "Real code scanned. Product lookup needs a product database — for now, confirm the item details manually.",
-          },
-          cta: "ADD 1 ITEM",
-          done: "Added to your Cabinet.",
-        }
+      ? barcodeResult(scanCode, product)
       : CAM_RESULT[detected];
   const remaining =
     phase === "result"
@@ -1690,6 +1739,7 @@ function CameraScreen({ goBack, goCabinet }) {
     setConfirmed({});
     setShowTypes(false);
     setScanCode(null);
+    setProduct(null);
     setPhase("capture");
   };
 
