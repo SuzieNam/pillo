@@ -2513,140 +2513,12 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   // four capture targets — one flow: aim → read (OCR / pill-ID) → confirm → apply
   // (prototype: canned reads. real app: MFDS pill-ID DB, product-code DB, LLM OCR)
   // one camera, no mode gate — AI classifies the shot; user corrects if wrong
-  const CAM_TYPES = [{
-    id: "rx",
-    label: "PRESCRIPTION"
-  }, {
-    id: "label",
-    label: "SUPPLEMENT LABEL"
-  }, {
-    id: "pill",
-    label: "LOOSE PILL"
-  }, {
-    id: "barcode",
-    label: "BARCODE"
-  }];
-  const TYPE_LABEL = {
-    rx: "Prescription",
-    label: "Supplement label",
-    pill: "Loose pill",
-    barcode: "Barcode"
-  };
-
-  // low: true = AI is unsure → must be tapped to confirm before anything applies
-  const CAM_RESULT = {
-    rx: {
-      source: "READ FROM PRESCRIPTION",
-      title: "3 medications detected",
-      fields: [{
-        id: "r1",
-        label: "MED 1",
-        value: "Amoxicillin 250mg · 1 cap · 3×/day"
-      }, {
-        id: "r2",
-        label: "MED 2",
-        value: "Loxoprofen 60mg · 1 tab · 3×/day",
-        low: true
-      }, {
-        id: "r3",
-        label: "MED 3",
-        value: "Rebamipide 100mg · 1 tab · 3×/day"
-      }],
-      note: {
-        k: "SCHEDULE",
-        v: "Dosing times were read too — 3 daily reminders will be created."
-      },
-      consult: true,
-      cta: "ADD 3 ITEMS + SCHEDULE",
-      done: "3 medications and their schedule were added to your Cabinet."
-    },
-    label: {
-      source: "READ FROM SUPPLEMENT LABEL",
-      title: "Vitamin B Complex",
-      fields: [{
-        id: "l1",
-        label: "VITAMIN B6",
-        value: "2mg"
-      }, {
-        id: "l2",
-        label: "VITAMIN B12",
-        value: "10µg",
-        low: true
-      }, {
-        id: "l3",
-        label: "FOLATE",
-        value: "400µg"
-      }, {
-        id: "l4",
-        label: "TYPE",
-        value: "Supplement"
-      }],
-      note: {
-        k: "OVERLAP CHECK",
-        v: "No overlap with the 5 items already in your Cabinet."
-      },
-      cta: "ADD 1 ITEM",
-      done: "Vitamin B Complex was added to your Cabinet."
-    },
-    pill: {
-      source: "MATCHED IN THE MFDS PILL DATABASE",
-      title: "Best match · 92%",
-      fields: [{
-        id: "p1",
-        label: "SHAPE",
-        value: "Round"
-      }, {
-        id: "p2",
-        label: "COLOR",
-        value: "White"
-      }, {
-        id: "p3",
-        label: "IMPRINT",
-        value: "TYLENOL 500",
-        low: true
-      }, {
-        id: "p4",
-        label: "MATCH",
-        value: "Acetaminophen 500mg"
-      }],
-      note: {
-        k: "ALREADY IN YOUR CABINET",
-        v: "This looks like your Acetaminophen — link to it instead of adding a duplicate?"
-      },
-      cta: "CONFIRM MATCH",
-      done: "Matched to Acetaminophen in your Cabinet."
-    },
-    barcode: {
-      source: "READ FROM BARCODE 8806469…",
-      title: "Centrum Men",
-      fields: [{
-        id: "b1",
-        label: "PRODUCT",
-        value: "Centrum Men Multivitamin"
-      }, {
-        id: "b2",
-        label: "SERVING",
-        value: "1 tablet / day"
-      }, {
-        id: "b3",
-        label: "INGREDIENTS",
-        value: "23 nutrients (A, C, D3, Zinc …)"
-      }],
-      note: {
-        k: "HIGH CONFIDENCE",
-        v: "Exact match from the product code — nothing needs confirming."
-      },
-      cta: "ADD 1 ITEM",
-      done: "Centrum Men was added to your Cabinet."
-    }
-  };
   function CameraScreen({
     goBack,
     goCabinet
   }) {
     const [phase, setPhase] = useState("capture"); // capture | scanning | result | done
     const [detected, setDetected] = useState("rx"); // AI's guess — correctable
-    const [showTypes, setShowTypes] = useState(false);
     const [confirmed, setConfirmed] = useState({});
     const timer = useRef(null);
     const videoRef = useRef(null);
@@ -2678,7 +2550,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       setScanCode(code);
       setDetected("barcode");
       setConfirmed({});
-      setShowTypes(false);
       setProduct(null);
       setPhase("scanning");
       lookupOFF(code).then(prod => {
@@ -2857,26 +2728,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         done: "Added to your Cabinet."
       };
     };
-    const R = detected === "barcode" && scanCode ? barcodeResult(scanCode, product) : CAM_RESULT[detected];
-    const remaining = phase === "result" ? R.fields.filter(f => f.low && !confirmed[f.id]).length : 0;
-    const pickType = id => {
-      setDetected(id);
-      setConfirmed({});
-      setShowTypes(false);
-    };
-    const shoot = () => {
-      setPhase("scanning");
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        setConfirmed({});
-        setShowTypes(false);
-        setPhase("result");
-      }, 1400);
-    };
+
+    // only the barcode path produces a real result today
+    const R = scanCode ? barcodeResult(scanCode, product) : null;
+    const remaining = phase === "result" && R ? R.fields.filter(f => f.low && !confirmed[f.id]).length : 0;
+
+    // photo reading needs a vision model — until a key is set up, say so plainly
+    const shoot = () => setPhase("noai");
     const retake = () => {
       if (timer.current) clearTimeout(timer.current);
       setConfirmed({});
-      setShowTypes(false);
       setScanCode(null);
       setProduct(null);
       setPhase("capture");
@@ -2934,7 +2795,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       className: "text-[10px] font-bold tracking-wider text-stone-50"
     }, "READING…")))), /*#__PURE__*/React.createElement("p", {
       className: "text-center text-[11px] text-stone-400 mt-5 px-2"
-    }, "Point at a prescription, label, pill, or barcode — PILLOG reads it and tells you what it found."), scanMsg && /*#__PURE__*/React.createElement("p", {
+    }, "Point at a barcode and it scans on its own."), scanMsg && /*#__PURE__*/React.createElement("p", {
       className: "text-center text-[10px] tracking-wide text-stone-500 mt-1"
     }, scanMsg)), /*#__PURE__*/React.createElement("div", {
       className: "absolute bottom-0 left-0 right-0 pb-8 pt-4 bg-stone-900"
@@ -2970,7 +2831,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       d: "M21 15l-5-5L5 21"
     })))), /*#__PURE__*/React.createElement("p", {
       className: "text-center text-[9px] tracking-wide text-stone-500 mt-4 px-10"
-    }, "AI READS IT — NOTHING IS SAVED UNTIL YOU CONFIRM")), phase === "result" && /*#__PURE__*/React.createElement("div", {
+    }, "BARCODES SCAN AUTOMATICALLY · NOTHING IS SAVED UNTIL YOU CONFIRM")), phase === "result" && R && /*#__PURE__*/React.createElement("div", {
       className: "absolute inset-0 z-20 bg-stone-100 text-stone-900 overflow-y-auto pb-6"
     }, /*#__PURE__*/React.createElement("div", {
       className: "border-b-2 border-stone-900"
@@ -2985,23 +2846,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       "aria-label": "Close",
       className: "text-lg leading-none px-1"
     }, "✕"))), /*#__PURE__*/React.createElement("div", {
-      className: "px-5 pt-4"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "flex items-center justify-between"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-      className: "text-[9px] font-bold tracking-wider text-stone-400"
-    }, "AI DETECTED"), /*#__PURE__*/React.createElement("p", {
-      className: "text-sm font-bold mt-0.5"
-    }, TYPE_LABEL[detected])), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setShowTypes(v => !v),
-      className: "text-[10px] font-bold tracking-wider text-stone-500 underline underline-offset-2"
-    }, showTypes ? "CLOSE" : "NOT THIS?")), showTypes && /*#__PURE__*/React.createElement("div", {
-      className: "flex flex-wrap gap-1.5 mt-2"
-    }, CAM_TYPES.map(t => /*#__PURE__*/React.createElement("button", {
-      key: t.id,
-      onClick: () => pickType(t.id),
-      className: "text-[9px] font-bold tracking-wider px-2 py-1 border " + (detected === t.id ? "bg-stone-900 text-stone-50 border-stone-900" : "border-stone-300 text-stone-500")
-    }, t.label)))), /*#__PURE__*/React.createElement("div", {
       className: "px-5 pt-4 pb-3"
     }, /*#__PURE__*/React.createElement("p", {
       className: "font-sans font-semibold text-2xl tracking-tight"
@@ -3049,7 +2893,39 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       onClick: () => remaining === 0 && setPhase("done"),
       disabled: remaining > 0,
       className: "flex-[2] py-3 text-[11px] font-bold tracking-wider " + (remaining > 0 ? "bg-stone-200 text-stone-400" : "bg-stone-900 text-stone-50")
-    }, remaining > 0 ? `CONFIRM ${remaining} FIELD${remaining > 1 ? "S" : ""}` : R.cta))), phase === "done" && /*#__PURE__*/React.createElement("div", {
+    }, remaining > 0 ? `CONFIRM ${remaining} FIELD${remaining > 1 ? "S" : ""}` : R.cta))), phase === "noai" && /*#__PURE__*/React.createElement("div", {
+      className: "absolute inset-0 z-20 bg-stone-100 text-stone-900 overflow-y-auto"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "border-b-2 border-stone-900"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "px-5 pt-5 pb-3 flex items-center justify-between"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-sm font-bold"
+    }, "Reading photos"), /*#__PURE__*/React.createElement("button", {
+      onClick: retake,
+      "aria-label": "Close",
+      className: "text-lg leading-none px-1"
+    }, "✕"))), /*#__PURE__*/React.createElement("div", {
+      className: "px-5 py-6"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-sm leading-relaxed"
+    }, "Barcode scanning works right now — just point the camera at one and it reads automatically."), /*#__PURE__*/React.createElement("p", {
+      className: "text-sm leading-relaxed mt-3"
+    }, "Reading a ", /*#__PURE__*/React.createElement("b", null, "label, prescription or loose pill"), " from a photo needs a vision model, which isn't connected yet."), /*#__PURE__*/React.createElement("div", {
+      className: "mt-5 border border-stone-300 bg-stone-50 px-4 py-3"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "text-[10px] font-bold tracking-wider text-stone-500"
+    }, "UNTIL THEN"), /*#__PURE__*/React.createElement("p", {
+      className: "text-xs leading-relaxed mt-1.5"
+    }, "Add the item by hand in Cabinet — copy the ingredients straight off the label and the overlap check works the same.")), /*#__PURE__*/React.createElement("div", {
+      className: "flex gap-2 mt-6"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: retake,
+      className: "flex-1 border-2 border-stone-900 py-3 text-[11px] font-bold tracking-wider"
+    }, "BACK TO CAMERA"), /*#__PURE__*/React.createElement("button", {
+      onClick: goCabinet,
+      className: "flex-1 bg-stone-900 text-stone-50 py-3 text-[11px] font-bold tracking-wider"
+    }, "ADD BY HAND")))), phase === "done" && R && /*#__PURE__*/React.createElement("div", {
       className: "absolute inset-0 z-20 bg-stone-100 text-stone-900 flex flex-col items-center justify-center text-center px-8 pb-20"
     }, /*#__PURE__*/React.createElement("span", {
       className: "w-16 h-16 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center"
